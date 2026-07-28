@@ -12,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
@@ -57,9 +58,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private final List<Player> hiddenScoreboards = new ArrayList<Player>();
     private final Map<Player, String> playerRanks = new HashMap<Player, String>();
 
-    // Scoreboard Unique pour NameTags & Sidebar
+    // Teams Bukkit
     private Scoreboard board;
-    private Objective sidebarObjective;
     private Team teamAdmin, teamMod, teamFamous, teamVip, teamDefault;
 
     @Override
@@ -72,10 +72,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private void setupScoreboardAndTeams() {
         ScoreboardManager manager = Bukkit.getScoreboardManager();
         board = manager.getNewScoreboard();
-
-        sidebarObjective = board.registerNewObjective("datsoup", "dummy");
-        sidebarObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        sidebarObjective.setDisplayName(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------");
 
         teamAdmin = getOrCreateTeam("01Admin", ChatColor.RED);
         teamMod = getOrCreateTeam("02Mod", ChatColor.DARK_PURPLE);
@@ -189,7 +185,18 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // GESTION SCOREBOARD
+    // IMPOSSIBLE DE PERDRE DE LA NOURRITURE
+    // ----------------------------------------------------
+    @EventHandler
+    public void onFoodChange(FoodLevelChangeEvent e) {
+        e.setCancelled(true);
+        if (e.getEntity() instanceof Player) {
+            ((Player) e.getEntity()).setFoodLevel(20);
+        }
+    }
+
+    // ----------------------------------------------------
+    // SCOREBOARD INDIVIDUEL ET PROPRE
     // ----------------------------------------------------
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
@@ -197,28 +204,31 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             return;
         }
 
-        p.setScoreboard(board);
+        Scoreboard pBoard = p.getScoreboard();
+        if (pBoard == null || pBoard == Bukkit.getScoreboardManager().getMainScoreboard()) {
+            pBoard = Bukkit.getScoreboardManager().getNewScoreboard();
+            p.setScoreboard(pBoard);
+        }
 
-        // Mise à jour de la Sidebar individuelle
+        Objective obj = pBoard.getObjective("datsoup");
+        if (obj == null) {
+            obj = pBoard.registerNewObjective("datsoup", "dummy");
+            obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+            obj.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "DatSoup");
+        }
+
         int k = kills.getOrDefault(p, 0);
         int d = deaths.getOrDefault(p, 0);
         double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
 
-        // Reset des anciens scores
-        for (String entry : board.getEntries()) {
-            if (entry.startsWith(ChatColor.COLOR_CHAR + "")) {
-                board.resetScores(entry);
-            }
-        }
+        String lineBar = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------";
 
-        sidebarObjective.getScore(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------").setScore(7);
-        sidebarObjective.getScore(ChatColor.RED + "DatSoup").setScore(6);
-        sidebarObjective.getScore(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------ ").setScore(5);
-        sidebarObjective.getScore(ChatColor.WHITE + p.getName()).setScore(4);
-        sidebarObjective.getScore(ChatColor.WHITE + "Kills: " + ChatColor.GREEN + k).setScore(3);
-        sidebarObjective.getScore(ChatColor.WHITE + "Deaths: " + ChatColor.RED + d).setScore(2);
-        sidebarObjective.getScore(ChatColor.WHITE + "Kd: " + ChatColor.YELLOW + kd).setScore(1);
-        sidebarObjective.getScore(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------  ").setScore(0);
+        obj.getScore(lineBar).setScore(6);
+        obj.getScore(ChatColor.WHITE + p.getName()).setScore(5);
+        obj.getScore(ChatColor.WHITE + "Kills: " + ChatColor.GREEN + k).setScore(4);
+        obj.getScore(ChatColor.WHITE + "Deaths: " + ChatColor.RED + d).setScore(3);
+        obj.getScore(ChatColor.WHITE + "Kd: " + ChatColor.YELLOW + kd).setScore(2);
+        obj.getScore(lineBar + " ").setScore(1);
     }
 
     private void toggleScoreboard(Player p) {
@@ -264,7 +274,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         if (!kills.containsKey(p)) kills.put(p, 0);
         if (!deaths.containsKey(p)) deaths.put(p, 0);
 
-        p.setScoreboard(board);
         setPlayerRank(p, "default");
 
         for (Player online : Bukkit.getOnlinePlayers()) {
@@ -289,6 +298,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
     private void teleportToSpawn(Player p) {
         if (spawnMain != null) p.teleport(spawnMain);
+        p.setHealth(p.getMaxHealth()); // Vie à 100%
+        p.setFoodLevel(20);             // Nourriture à 100%
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
         
@@ -557,6 +568,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private void giveKit(Player p) {
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
+        p.setHealth(p.getMaxHealth());
+        p.setFoodLevel(20);
 
         ItemStack sword = new ItemStack(Material.STONE_SWORD);
         ItemMeta meta = sword.getItemMeta();
