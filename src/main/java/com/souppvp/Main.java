@@ -73,9 +73,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         saveDataToConfig();
     }
 
-    // ----------------------------------------------------
-    // CHARGEMENT ET SAUVEGARDE DE LA CONFIGURATION
-    // ----------------------------------------------------
     private void loadDataFromConfig() {
         if (getConfig().contains("spawns.main")) spawnMain = (Location) getConfig().get("spawns.main");
         if (getConfig().contains("spawns.arene")) spawnArene = (Location) getConfig().get("spawns.arene");
@@ -119,9 +116,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         saveConfig();
     }
 
-    // ----------------------------------------------------
-    // COMMANDES
-    // ----------------------------------------------------
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!(sender instanceof Player)) return true;
@@ -209,9 +203,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(" ");
     }
 
-    // ----------------------------------------------------
-    // GESTION DU RANG & COULEUR DES JOUEURS
-    // ----------------------------------------------------
     private void setPlayerRank(Player p, String rank) {
         playerRanks.put(p.getUniqueId(), rank);
         updateAllPlayerNameTags();
@@ -288,7 +279,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // NOUVEAU SCOREBOARD STRUCTURE
+    // SCOREBOARD SÉCURISÉ (FORCE '0' POUR KILLS SI NON DÉFINI)
     // ----------------------------------------------------
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
@@ -312,10 +303,12 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         obj.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "SoupTournament");
 
         UUID uuid = p.getUniqueId();
-        int k = kills.getOrDefault(uuid, 0);
-        int d = deaths.getOrDefault(uuid, 0);
-        int ks = killstreaks.getOrDefault(uuid, 0);
-        int wins = tournoiWins.getOrDefault(uuid, 0);
+        
+        // Initialisation garantie des statistiques pour éviter l'absence de '0'
+        int k = kills.get(uuid) != null ? kills.get(uuid) : 0;
+        int d = deaths.get(uuid) != null ? deaths.get(uuid) : 0;
+        int ks = killstreaks.get(uuid) != null ? killstreaks.get(uuid) : 0;
+        int wins = tournoiWins.get(uuid) != null ? tournoiWins.get(uuid) : 0;
         double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
 
         String rank = playerRanks.getOrDefault(uuid, "default");
@@ -347,9 +340,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
-    // ----------------------------------------------------
-    // GAMEPLAY (SOUP, DUELS, TOURNOI)
-    // ----------------------------------------------------
     @EventHandler
     public void onItemDamage(PlayerItemDamageEvent e) {
         if (e.getItem() != null && e.getItem().getType() == Material.STONE_SWORD) {
@@ -374,6 +364,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
+        e.setJoinMessage(null);
+
         Player p = e.getPlayer();
         UUID uuid = p.getUniqueId();
 
@@ -391,6 +383,23 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         teleportToSpawn(p);
         updateAllPlayerNameTags();
         updateScoreboard(p);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        e.setQuitMessage(null);
+
+        Player p = e.getPlayer();
+        queue1v1.remove(p);
+        if (opponents.containsKey(p)) {
+            Player winner = opponents.remove(p);
+            opponents.remove(winner);
+            resetVanish(winner);
+            teleportToSpawn(winner);
+            updateScoreboard(winner);
+            winner.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "L'adversaire s'est deconnecte.");
+        }
+        saveDataToConfig();
     }
 
     @EventHandler
@@ -564,18 +573,19 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     @EventHandler
     public void onDeath(PlayerDeathEvent e) {
         final Player victim = e.getEntity();
+        e.setDeathMessage(null);
         e.getDrops().clear();
 
         UUID vUuid = victim.getUniqueId();
         deaths.put(vUuid, deaths.getOrDefault(vUuid, 0) + 1);
-        killstreaks.put(vUuid, 0); // Réinitialisation Killstreak du mort
+        killstreaks.put(vUuid, 0);
         updateScoreboard(victim);
 
         if (victim.getKiller() != null) {
             Player killer = victim.getKiller();
             UUID kUuid = killer.getUniqueId();
             kills.put(kUuid, kills.getOrDefault(kUuid, 0) + 1);
-            killstreaks.put(kUuid, killstreaks.getOrDefault(kUuid, 0) + 1); // Augmentation KS
+            killstreaks.put(kUuid, killstreaks.getOrDefault(kUuid, 0) + 1);
             updateScoreboard(killer);
         }
 
@@ -607,7 +617,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             if (tournoiParticipants.size() == 1) {
                 final Player winner = tournoiParticipants.get(0);
                 UUID wUuid = winner.getUniqueId();
-                tournoiWins.put(wUuid, tournoiWins.getOrDefault(wUuid, 0) + 1); // +1 Tournoi gagné
+                tournoiWins.put(wUuid, tournoiWins.getOrDefault(wUuid, 0) + 1);
 
                 Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.GOLD + "" + ChatColor.BOLD + "VICTOIRE DE " + winner.getName() + " !");
                 tournoiEnCours = false;
@@ -623,21 +633,13 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 }, 60L);
             }
         }
-    }
 
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        Player p = e.getPlayer();
-        queue1v1.remove(p);
-        if (opponents.containsKey(p)) {
-            Player winner = opponents.remove(p);
-            opponents.remove(winner);
-            resetVanish(winner);
-            teleportToSpawn(winner);
-            updateScoreboard(winner);
-            winner.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "L'adversaire s'est deconnecte.");
-        }
-        saveDataToConfig();
+        Bukkit.getScheduler().runTaskLater(this, new Runnable() {
+            @Override
+            public void run() {
+                victim.spigot().respawn();
+            }
+        }, 2L);
     }
 
     private void resetVanish(Player p) {
