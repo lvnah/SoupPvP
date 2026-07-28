@@ -53,15 +53,16 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private boolean tournoiEnCours = false;
     private final List<Player> tournoiParticipants = new ArrayList<Player>();
 
-    // Persistent Stats & Grades (Stockés en Config)
+    // Stats & Data
     private final Map<UUID, Integer> kills = new HashMap<UUID, Integer>();
     private final Map<UUID, Integer> deaths = new HashMap<UUID, Integer>();
+    private final Map<UUID, Integer> killstreaks = new HashMap<UUID, Integer>();
+    private final Map<UUID, Integer> tournoiWins = new HashMap<UUID, Integer>();
     private final Map<UUID, String> playerRanks = new HashMap<UUID, String>();
     private final List<Player> hiddenScoreboards = new ArrayList<Player>();
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
         loadDataFromConfig();
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("Plugin DatSoup 1.8 active avec succes !");
@@ -73,21 +74,13 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // SAUVEGARDE PERSISTANTE DANS CONFIG.YML
+    // CHARGEMENT ET SAUVEGARDE DE LA CONFIGURATION
     // ----------------------------------------------------
     private void loadDataFromConfig() {
-        if (getConfig().contains("spawns.main")) {
-            spawnMain = (Location) getConfig().get("spawns.main");
-        }
-        if (getConfig().contains("spawns.arene")) {
-            spawnArene = (Location) getConfig().get("spawns.arene");
-        }
-        if (getConfig().contains("spawns.1v1_1")) {
-            spawn1v1_1 = (Location) getConfig().get("spawns.1v1_1");
-        }
-        if (getConfig().contains("spawns.1v1_2")) {
-            spawn1v1_2 = (Location) getConfig().get("spawns.1v1_2");
-        }
+        if (getConfig().contains("spawns.main")) spawnMain = (Location) getConfig().get("spawns.main");
+        if (getConfig().contains("spawns.arene")) spawnArene = (Location) getConfig().get("spawns.arene");
+        if (getConfig().contains("spawns.1v1_1")) spawn1v1_1 = (Location) getConfig().get("spawns.1v1_1");
+        if (getConfig().contains("spawns.1v1_2")) spawn1v1_2 = (Location) getConfig().get("spawns.1v1_2");
         if (getConfig().contains("spawns.tournois")) {
             List<?> list = getConfig().getList("spawns.tournois");
             for (Object o : list) {
@@ -101,6 +94,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                     UUID uuid = UUID.fromString(key);
                     kills.put(uuid, getConfig().getInt("players." + key + ".kills", 0));
                     deaths.put(uuid, getConfig().getInt("players." + key + ".deaths", 0));
+                    killstreaks.put(uuid, getConfig().getInt("players." + key + ".killstreak", 0));
+                    tournoiWins.put(uuid, getConfig().getInt("players." + key + ".tournoiWins", 0));
                     playerRanks.put(uuid, getConfig().getString("players." + key + ".rank", "default"));
                 } catch (Exception ignored) {}
             }
@@ -117,6 +112,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         for (UUID uuid : playerRanks.keySet()) {
             getConfig().set("players." + uuid.toString() + ".kills", kills.getOrDefault(uuid, 0));
             getConfig().set("players." + uuid.toString() + ".deaths", deaths.getOrDefault(uuid, 0));
+            getConfig().set("players." + uuid.toString() + ".killstreak", killstreaks.getOrDefault(uuid, 0));
+            getConfig().set("players." + uuid.toString() + ".tournoiWins", tournoiWins.getOrDefault(uuid, 0));
             getConfig().set("players." + uuid.toString() + ".rank", playerRanks.getOrDefault(uuid, "default"));
         }
         saveConfig();
@@ -140,23 +137,23 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         if (name.equals("setspawn")) {
             spawnMain = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn principal defini et sauvegarde !");
+            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn principal defini !");
         } else if (name.equals("setarenespawn")) {
             spawnArene = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn de l'Arene FFA defini et sauvegarde !");
+            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn de l'Arene FFA defini !");
         } else if (name.equals("set1v1spawn1")) {
             spawn1v1_1 = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #1 defini et sauvegarde !");
+            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #1 defini !");
         } else if (name.equals("set1v1spawn2")) {
             spawn1v1_2 = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #2 defini et sauvegarde !");
+            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #2 defini !");
         } else if (name.equals("settournoispawn")) {
             tournoiSpawns.add(p.getLocation());
             saveDataToConfig();
-            p.sendMessage(PREFIX_TOURNOI + ChatColor.GREEN + "Spawn tournoi #" + tournoiSpawns.size() + " ajoute et sauvegarde !");
+            p.sendMessage(PREFIX_TOURNOI + ChatColor.GREEN + "Spawn tournoi #" + tournoiSpawns.size() + " ajoute !");
         } else if (name.equals("menu")) {
             openMenu(p);
         } else if (name.equals("queue1v1")) {
@@ -213,11 +210,20 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // GESTION DU RANG ET DE LA COULEUR AU-DESSUS DE LA TÊTE (NAMETAG)
+    // GESTION DU RANG & COULEUR DES JOUEURS
     // ----------------------------------------------------
     private void setPlayerRank(Player p, String rank) {
         playerRanks.put(p.getUniqueId(), rank);
         updateAllPlayerNameTags();
+        updateScoreboard(p);
+    }
+
+    private ChatColor getRankColor(String rank) {
+        if (rank.equals("admin")) return ChatColor.RED;
+        if (rank.equals("mod")) return ChatColor.DARK_PURPLE;
+        if (rank.equals("famous")) return ChatColor.AQUA;
+        if (rank.equals("vip")) return ChatColor.GOLD;
+        return ChatColor.WHITE;
     }
 
     private void updateAllPlayerNameTags() {
@@ -236,7 +242,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
             for (Player target : Bukkit.getOnlinePlayers()) {
                 String r = playerRanks.getOrDefault(target.getUniqueId(), "default");
-                ChatColor color = ChatColor.WHITE;
+                ChatColor color = getRankColor(r);
 
                 tAdmin.removeEntry(target.getName());
                 tMod.removeEntry(target.getName());
@@ -244,22 +250,11 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 tVip.removeEntry(target.getName());
                 tDefault.removeEntry(target.getName());
 
-                if (r.equals("admin")) {
-                    tAdmin.addEntry(target.getName());
-                    color = ChatColor.RED;
-                } else if (r.equals("mod")) {
-                    tMod.addEntry(target.getName());
-                    color = ChatColor.DARK_PURPLE;
-                } else if (r.equals("famous")) {
-                    tFamous.addEntry(target.getName());
-                    color = ChatColor.AQUA;
-                } else if (r.equals("vip")) {
-                    tVip.addEntry(target.getName());
-                    color = ChatColor.GOLD;
-                } else {
-                    tDefault.addEntry(target.getName());
-                    color = ChatColor.WHITE;
-                }
+                if (r.equals("admin")) tAdmin.addEntry(target.getName());
+                else if (r.equals("mod")) tMod.addEntry(target.getName());
+                else if (r.equals("famous")) tFamous.addEntry(target.getName());
+                else if (r.equals("vip")) tVip.addEntry(target.getName());
+                else tDefault.addEntry(target.getName());
 
                 target.setPlayerListName(color + target.getName());
             }
@@ -279,12 +274,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     public void onChat(AsyncPlayerChatEvent e) {
         Player p = e.getPlayer();
         String rank = playerRanks.getOrDefault(p.getUniqueId(), "default");
-        ChatColor color = ChatColor.WHITE;
-
-        if (rank.equals("admin")) color = ChatColor.RED;
-        else if (rank.equals("mod")) color = ChatColor.DARK_PURPLE;
-        else if (rank.equals("famous")) color = ChatColor.AQUA;
-        else if (rank.equals("vip")) color = ChatColor.GOLD;
+        ChatColor color = getRankColor(rank);
 
         e.setFormat(color + "%1$s" + ChatColor.RESET + ": %2$s");
     }
@@ -297,6 +287,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
+    // ----------------------------------------------------
+    // NOUVEAU SCOREBOARD STRUCTURE
+    // ----------------------------------------------------
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
@@ -309,26 +302,37 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             p.setScoreboard(pBoard);
         }
 
-        Objective obj = pBoard.getObjective("datsoup");
-        if (obj == null) {
-            obj = pBoard.registerNewObjective("datsoup", "dummy");
-            obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-            obj.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "DatSoup");
+        Objective obj = pBoard.getObjective("souptournament");
+        if (obj != null) {
+            obj.unregister();
         }
+        
+        obj = pBoard.registerNewObjective("souptournament", "dummy");
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+        obj.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "SoupTournament");
 
         UUID uuid = p.getUniqueId();
         int k = kills.getOrDefault(uuid, 0);
         int d = deaths.getOrDefault(uuid, 0);
+        int ks = killstreaks.getOrDefault(uuid, 0);
+        int wins = tournoiWins.getOrDefault(uuid, 0);
         double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
 
-        String lineBar = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------";
+        String rank = playerRanks.getOrDefault(uuid, "default");
+        ChatColor rankColor = getRankColor(rank);
 
-        obj.getScore(lineBar).setScore(6);
-        obj.getScore(ChatColor.WHITE + p.getName()).setScore(5);
-        obj.getScore(ChatColor.WHITE + "Kills: " + ChatColor.GREEN + k).setScore(4);
-        obj.getScore(ChatColor.WHITE + "Deaths: " + ChatColor.RED + d).setScore(3);
-        obj.getScore(ChatColor.WHITE + "Kd: " + ChatColor.YELLOW + kd).setScore(2);
-        obj.getScore(lineBar + " ").setScore(1);
+        obj.getScore(rankColor + p.getName()).setScore(11);
+        obj.getScore(ChatColor.GRAY + " ").setScore(10);
+        obj.getScore(ChatColor.GRAY + "Kills").setScore(9);
+        obj.getScore(ChatColor.RED + "" + k).setScore(8);
+        obj.getScore(ChatColor.GRAY + "Death").setScore(7);
+        obj.getScore(ChatColor.RED + "" + d).setScore(6);
+        obj.getScore(ChatColor.GRAY + "Ratio").setScore(5);
+        obj.getScore(ChatColor.RED + "" + kd).setScore(4);
+        obj.getScore(ChatColor.GRAY + "KS").setScore(3);
+        obj.getScore(ChatColor.RED + "" + ks).setScore(2);
+        obj.getScore(ChatColor.GRAY + "Tournament win").setScore(1);
+        obj.getScore(ChatColor.RED + "" + wins + " ").setScore(0);
     }
 
     private void toggleScoreboard(Player p) {
@@ -343,6 +347,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
+    // ----------------------------------------------------
+    // GAMEPLAY (SOUP, DUELS, TOURNOI)
+    // ----------------------------------------------------
     @EventHandler
     public void onItemDamage(PlayerItemDamageEvent e) {
         if (e.getItem() != null && e.getItem().getType() == Material.STONE_SWORD) {
@@ -372,6 +379,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         if (!kills.containsKey(uuid)) kills.put(uuid, 0);
         if (!deaths.containsKey(uuid)) deaths.put(uuid, 0);
+        if (!killstreaks.containsKey(uuid)) killstreaks.put(uuid, 0);
+        if (!tournoiWins.containsKey(uuid)) tournoiWins.put(uuid, 0);
         if (!playerRanks.containsKey(uuid)) playerRanks.put(uuid, "default");
 
         for (Player online : Bukkit.getOnlinePlayers()) {
@@ -559,12 +568,14 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         UUID vUuid = victim.getUniqueId();
         deaths.put(vUuid, deaths.getOrDefault(vUuid, 0) + 1);
+        killstreaks.put(vUuid, 0); // Réinitialisation Killstreak du mort
         updateScoreboard(victim);
 
         if (victim.getKiller() != null) {
             Player killer = victim.getKiller();
             UUID kUuid = killer.getUniqueId();
             kills.put(kUuid, kills.getOrDefault(kUuid, 0) + 1);
+            killstreaks.put(kUuid, killstreaks.getOrDefault(kUuid, 0) + 1); // Augmentation KS
             updateScoreboard(killer);
         }
 
@@ -595,9 +606,14 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
             if (tournoiParticipants.size() == 1) {
                 final Player winner = tournoiParticipants.get(0);
+                UUID wUuid = winner.getUniqueId();
+                tournoiWins.put(wUuid, tournoiWins.getOrDefault(wUuid, 0) + 1); // +1 Tournoi gagné
+
                 Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.GOLD + "" + ChatColor.BOLD + "VICTOIRE DE " + winner.getName() + " !");
                 tournoiEnCours = false;
                 tournoiParticipants.clear();
+                saveDataToConfig();
+
                 Bukkit.getScheduler().runTaskLater(this, new Runnable() {
                     @Override
                     public void run() {

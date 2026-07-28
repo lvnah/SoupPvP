@@ -1,11 +1,11 @@
-name: DatSoup
+name: SoupTournament
 version: 1.0
 main: com.souppvp.Main
 api-version: 1.8
 author: Gemini
 commands:
   help:
-    description: Affiche l'aide du serveur DatSoup.
+    description: Affiche l'aide du serveur SoupTournament.
   setspawn:
     description: Definit le spawn principal.
   setarenespawn:
