@@ -319,7 +319,7 @@ private void updateScoreboard(Player p) {
         ChatColor rankColor = getRankColor(rank);
 
         // Sécurité stricte 16 caractères max par ligne
-        addSafeScore(obj, rankColor + safeString(p.getName(), 14), 11);
+        addSafeScore(obj, "Rank" + rankColor, 11);
         addSafeScore(obj, ChatColor.GRAY + " ", 10);
         addSafeScore(obj, ChatColor.GRAY + "Kills", 9);
         addSafeScore(obj, ChatColor.RED + "" + k, 8);
