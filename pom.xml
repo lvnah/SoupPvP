@@ -15,9 +15,15 @@
     </properties>
 
     <repositories>
+        <!-- Dépôt principal Spigot -->
         <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+        </repository>
+        <!-- Dépôt miroir pour les anciennes dépendances BungeeCord 1.8 -->
+        <repository>
+            <id>elmakers-repo</id>
+            <url>https://maven.elmakers.com/repository/</url>
         </repository>
     </repositories>
 
