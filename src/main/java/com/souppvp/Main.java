@@ -66,7 +66,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
         setupScoreboardAndTeams();
-        getLogger().info("Plugin SoupPvP 1.8 active avec succes !");
+        getLogger().info("Plugin DatSoup 1.8 active avec succes !");
     }
 
     private void setupScoreboardAndTeams() {
@@ -95,6 +95,12 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         Player p = (Player) sender;
 
         String name = cmd.getName().toLowerCase();
+
+        if (name.equals("help")) {
+            sendHelpMenu(p);
+            return true;
+        }
+
         if (name.equals("setspawn")) {
             spawnMain = p.getLocation();
             p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn principal defini !");
@@ -117,6 +123,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         } else if (name.equals("tournoi")) {
             if (args.length > 0 && args[0].equalsIgnoreCase("start")) {
                 startTournoi(p);
+            } else {
+                p.sendMessage(PREFIX_TOURNOI + ChatColor.YELLOW + "Usage: /tournoi start");
             }
         } else if (name.equals("sb") || name.equals("scoreboard")) {
             toggleScoreboard(p);
@@ -138,6 +146,28 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             p.sendMessage(PREFIX + ChatColor.GREEN + "Grade de " + target.getName() + " mis a jour !");
         }
         return true;
+    }
+
+    private void sendHelpMenu(Player p) {
+        p.sendMessage(" ");
+        p.sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "===== COMMANDES DATSOUP =====");
+        p.sendMessage(ChatColor.YELLOW + "/menu " + ChatColor.GRAY + "- Ouvre le menu des modes de jeu");
+        p.sendMessage(ChatColor.YELLOW + "/queue1v1 " + ChatColor.GRAY + "- Rejoindre la file d'attente 1v1");
+        p.sendMessage(ChatColor.YELLOW + "/sb ou /scoreboard " + ChatColor.GRAY + "- Masquer/Afficher le scoreboard");
+        
+        if (p.hasPermission("souppvp.admin") || p.isOp()) {
+            p.sendMessage(" ");
+            p.sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "===== COMMANDES ADMIN =====");
+            p.sendMessage(ChatColor.RED + "/setspawn " + ChatColor.GRAY + "- Definir le Spawn principal");
+            p.sendMessage(ChatColor.RED + "/setarenespawn " + ChatColor.GRAY + "- Definir le Spawn de l'Arene FFA");
+            p.sendMessage(ChatColor.RED + "/set1v1spawn1 " + ChatColor.GRAY + "- Definir le 1er spawn 1v1");
+            p.sendMessage(ChatColor.RED + "/set1v1spawn2 " + ChatColor.GRAY + "- Definir le 2eme spawn 1v1");
+            p.sendMessage(ChatColor.RED + "/settournoispawn " + ChatColor.GRAY + "- Ajouter un spawn de Tournoi");
+            p.sendMessage(ChatColor.RED + "/tournoi start " + ChatColor.GRAY + "- Lancer le tournoi (min 4 joueurs)");
+            p.sendMessage(ChatColor.RED + "/setrank <joueur> <rank> " + ChatColor.GRAY + "- Changer le grade (admin, mod, famous, vip, default)");
+        }
+        p.sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "=============================");
+        p.sendMessage(" ");
     }
 
     private void setPlayerRank(Player p, String rank) {
@@ -169,7 +199,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.setPlayerListName(color + p.getName());
     }
 
-    // Chat avec couleur du grade
     @EventHandler
     public void onChat(AsyncPlayerChatEvent e) {
         Player p = e.getPlayer();
@@ -184,9 +213,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         e.setFormat(color + "%1$s" + ChatColor.RESET + ": %2$s");
     }
 
-    // ----------------------------------------------------
-    // IMPOSSIBLE DE PERDRE DE LA NOURRITURE
-    // ----------------------------------------------------
     @EventHandler
     public void onFoodChange(FoodLevelChangeEvent e) {
         e.setCancelled(true);
@@ -195,9 +221,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
-    // ----------------------------------------------------
-    // SCOREBOARD INDIVIDUEL ET PROPRE
-    // ----------------------------------------------------
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
@@ -243,9 +266,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
-    // ----------------------------------------------------
-    // INTERACTION / SOUPS / FILE 1V1
-    // ----------------------------------------------------
     @EventHandler
     public void onItemDamage(PlayerItemDamageEvent e) {
         if (e.getItem() != null && e.getItem().getType() == Material.STONE_SWORD) {
@@ -298,8 +318,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
     private void teleportToSpawn(Player p) {
         if (spawnMain != null) p.teleport(spawnMain);
-        p.setHealth(p.getMaxHealth()); // Vie à 100%
-        p.setFoodLevel(20);             // Nourriture à 100%
+        p.setHealth(p.getMaxHealth());
+        p.setFoodLevel(20);
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
         
@@ -445,9 +465,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         if (attacker.getItemInHand() != null && attacker.getItemInHand().getType() == Material.STONE_SWORD) {
             if (!attacker.isOnGround() && attacker.getFallDistance() > 0) {
-                e.setDamage(5.0); // 2.5 cœurs
+                e.setDamage(5.0);
             } else {
-                e.setDamage(4.0); // 2 cœurs
+                e.setDamage(4.0);
             }
         }
     }
