@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
@@ -52,43 +53,78 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private boolean tournoiEnCours = false;
     private final List<Player> tournoiParticipants = new ArrayList<Player>();
 
-    // Stats
-    private final Map<Player, Integer> kills = new HashMap<Player, Integer>();
-    private final Map<Player, Integer> deaths = new HashMap<Player, Integer>();
+    // Persistent Stats & Grades (Stockés en Config)
+    private final Map<UUID, Integer> kills = new HashMap<UUID, Integer>();
+    private final Map<UUID, Integer> deaths = new HashMap<UUID, Integer>();
+    private final Map<UUID, String> playerRanks = new HashMap<UUID, String>();
     private final List<Player> hiddenScoreboards = new ArrayList<Player>();
-    private final Map<Player, String> playerRanks = new HashMap<Player, String>();
-
-    // Teams Bukkit
-    private Scoreboard board;
-    private Team teamAdmin, teamMod, teamFamous, teamVip, teamDefault;
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+        loadDataFromConfig();
         getServer().getPluginManager().registerEvents(this, this);
-        setupScoreboardAndTeams();
         getLogger().info("Plugin DatSoup 1.8 active avec succes !");
     }
 
-    private void setupScoreboardAndTeams() {
-        ScoreboardManager manager = Bukkit.getScoreboardManager();
-        board = manager.getNewScoreboard();
-
-        teamAdmin = getOrCreateTeam("01Admin", ChatColor.RED);
-        teamMod = getOrCreateTeam("02Mod", ChatColor.DARK_PURPLE);
-        teamFamous = getOrCreateTeam("03Famous", ChatColor.AQUA);
-        teamVip = getOrCreateTeam("04Vip", ChatColor.GOLD);
-        teamDefault = getOrCreateTeam("05Default", ChatColor.WHITE);
+    @Override
+    public void onDisable() {
+        saveDataToConfig();
     }
 
-    private Team getOrCreateTeam(String name, ChatColor color) {
-        Team team = board.getTeam(name);
-        if (team == null) {
-            team = board.registerNewTeam(name);
+    // ----------------------------------------------------
+    // SAUVEGARDE PERSISTANTE DANS CONFIG.YML
+    // ----------------------------------------------------
+    private void loadDataFromConfig() {
+        if (getConfig().contains("spawns.main")) {
+            spawnMain = (Location) getConfig().get("spawns.main");
         }
-        team.setPrefix(color.toString());
-        return team;
+        if (getConfig().contains("spawns.arene")) {
+            spawnArene = (Location) getConfig().get("spawns.arene");
+        }
+        if (getConfig().contains("spawns.1v1_1")) {
+            spawn1v1_1 = (Location) getConfig().get("spawns.1v1_1");
+        }
+        if (getConfig().contains("spawns.1v1_2")) {
+            spawn1v1_2 = (Location) getConfig().get("spawns.1v1_2");
+        }
+        if (getConfig().contains("spawns.tournois")) {
+            List<?> list = getConfig().getList("spawns.tournois");
+            for (Object o : list) {
+                if (o instanceof Location) tournoiSpawns.add((Location) o);
+            }
+        }
+
+        if (getConfig().contains("players")) {
+            for (String key : getConfig().getConfigurationSection("players").getKeys(false)) {
+                try {
+                    UUID uuid = UUID.fromString(key);
+                    kills.put(uuid, getConfig().getInt("players." + key + ".kills", 0));
+                    deaths.put(uuid, getConfig().getInt("players." + key + ".deaths", 0));
+                    playerRanks.put(uuid, getConfig().getString("players." + key + ".rank", "default"));
+                } catch (Exception ignored) {}
+            }
+        }
     }
 
+    private void saveDataToConfig() {
+        if (spawnMain != null) getConfig().set("spawns.main", spawnMain);
+        if (spawnArene != null) getConfig().set("spawns.arene", spawnArene);
+        if (spawn1v1_1 != null) getConfig().set("spawns.1v1_1", spawn1v1_1);
+        if (spawn1v1_2 != null) getConfig().set("spawns.1v1_2", spawn1v1_2);
+        getConfig().set("spawns.tournois", tournoiSpawns);
+
+        for (UUID uuid : playerRanks.keySet()) {
+            getConfig().set("players." + uuid.toString() + ".kills", kills.getOrDefault(uuid, 0));
+            getConfig().set("players." + uuid.toString() + ".deaths", deaths.getOrDefault(uuid, 0));
+            getConfig().set("players." + uuid.toString() + ".rank", playerRanks.getOrDefault(uuid, "default"));
+        }
+        saveConfig();
+    }
+
+    // ----------------------------------------------------
+    // COMMANDES
+    // ----------------------------------------------------
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!(sender instanceof Player)) return true;
@@ -103,19 +139,24 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         if (name.equals("setspawn")) {
             spawnMain = p.getLocation();
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn principal defini !");
+            saveDataToConfig();
+            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn principal defini et sauvegarde !");
         } else if (name.equals("setarenespawn")) {
             spawnArene = p.getLocation();
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn de l'Arene FFA defini !");
+            saveDataToConfig();
+            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn de l'Arene FFA defini et sauvegarde !");
         } else if (name.equals("set1v1spawn1")) {
             spawn1v1_1 = p.getLocation();
-            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #1 defini !");
+            saveDataToConfig();
+            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #1 defini et sauvegarde !");
         } else if (name.equals("set1v1spawn2")) {
             spawn1v1_2 = p.getLocation();
-            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #2 defini !");
+            saveDataToConfig();
+            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #2 defini et sauvegarde !");
         } else if (name.equals("settournoispawn")) {
             tournoiSpawns.add(p.getLocation());
-            p.sendMessage(PREFIX_TOURNOI + ChatColor.GREEN + "Spawn tournoi #" + tournoiSpawns.size() + " ajoute !");
+            saveDataToConfig();
+            p.sendMessage(PREFIX_TOURNOI + ChatColor.GREEN + "Spawn tournoi #" + tournoiSpawns.size() + " ajoute et sauvegarde !");
         } else if (name.equals("menu")) {
             openMenu(p);
         } else if (name.equals("queue1v1")) {
@@ -143,6 +184,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 return true;
             }
             setPlayerRank(target, args[1].toLowerCase());
+            saveDataToConfig();
             p.sendMessage(PREFIX + ChatColor.GREEN + "Grade de " + target.getName() + " mis a jour !");
         }
         return true;
@@ -170,39 +212,73 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(" ");
     }
 
+    // ----------------------------------------------------
+    // GESTION DU RANG ET DE LA COULEUR AU-DESSUS DE LA TÊTE (NAMETAG)
+    // ----------------------------------------------------
     private void setPlayerRank(Player p, String rank) {
-        teamAdmin.removeEntry(p.getName());
-        teamMod.removeEntry(p.getName());
-        teamFamous.removeEntry(p.getName());
-        teamVip.removeEntry(p.getName());
-        teamDefault.removeEntry(p.getName());
+        playerRanks.put(p.getUniqueId(), rank);
+        updateAllPlayerNameTags();
+    }
 
-        ChatColor color = ChatColor.WHITE;
-        if (rank.equals("admin")) {
-            teamAdmin.addEntry(p.getName());
-            color = ChatColor.RED;
-        } else if (rank.equals("mod")) {
-            teamMod.addEntry(p.getName());
-            color = ChatColor.DARK_PURPLE;
-        } else if (rank.equals("famous")) {
-            teamFamous.addEntry(p.getName());
-            color = ChatColor.AQUA;
-        } else if (rank.equals("vip")) {
-            teamVip.addEntry(p.getName());
-            color = ChatColor.GOLD;
-        } else {
-            teamDefault.addEntry(p.getName());
-            color = ChatColor.WHITE;
+    private void updateAllPlayerNameTags() {
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            Scoreboard sb = viewer.getScoreboard();
+            if (sb == Bukkit.getScoreboardManager().getMainScoreboard()) {
+                sb = Bukkit.getScoreboardManager().getNewScoreboard();
+                viewer.setScoreboard(sb);
+            }
+
+            Team tAdmin = getOrCreateTeam(sb, "01Admin", ChatColor.RED);
+            Team tMod = getOrCreateTeam(sb, "02Mod", ChatColor.DARK_PURPLE);
+            Team tFamous = getOrCreateTeam(sb, "03Famous", ChatColor.AQUA);
+            Team tVip = getOrCreateTeam(sb, "04Vip", ChatColor.GOLD);
+            Team tDefault = getOrCreateTeam(sb, "05Default", ChatColor.WHITE);
+
+            for (Player target : Bukkit.getOnlinePlayers()) {
+                String r = playerRanks.getOrDefault(target.getUniqueId(), "default");
+                ChatColor color = ChatColor.WHITE;
+
+                tAdmin.removeEntry(target.getName());
+                tMod.removeEntry(target.getName());
+                tFamous.removeEntry(target.getName());
+                tVip.removeEntry(target.getName());
+                tDefault.removeEntry(target.getName());
+
+                if (r.equals("admin")) {
+                    tAdmin.addEntry(target.getName());
+                    color = ChatColor.RED;
+                } else if (r.equals("mod")) {
+                    tMod.addEntry(target.getName());
+                    color = ChatColor.DARK_PURPLE;
+                } else if (r.equals("famous")) {
+                    tFamous.addEntry(target.getName());
+                    color = ChatColor.AQUA;
+                } else if (r.equals("vip")) {
+                    tVip.addEntry(target.getName());
+                    color = ChatColor.GOLD;
+                } else {
+                    tDefault.addEntry(target.getName());
+                    color = ChatColor.WHITE;
+                }
+
+                target.setPlayerListName(color + target.getName());
+            }
         }
+    }
 
-        playerRanks.put(p, rank);
-        p.setPlayerListName(color + p.getName());
+    private Team getOrCreateTeam(Scoreboard sb, String name, ChatColor color) {
+        Team t = sb.getTeam(name);
+        if (t == null) {
+            t = sb.registerNewTeam(name);
+        }
+        t.setPrefix(color.toString());
+        return t;
     }
 
     @EventHandler
     public void onChat(AsyncPlayerChatEvent e) {
         Player p = e.getPlayer();
-        String rank = playerRanks.getOrDefault(p, "default");
+        String rank = playerRanks.getOrDefault(p.getUniqueId(), "default");
         ChatColor color = ChatColor.WHITE;
 
         if (rank.equals("admin")) color = ChatColor.RED;
@@ -240,8 +316,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             obj.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "DatSoup");
         }
 
-        int k = kills.getOrDefault(p, 0);
-        int d = deaths.getOrDefault(p, 0);
+        UUID uuid = p.getUniqueId();
+        int k = kills.getOrDefault(uuid, 0);
+        int d = deaths.getOrDefault(uuid, 0);
         double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
 
         String lineBar = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------";
@@ -291,16 +368,19 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
-        if (!kills.containsKey(p)) kills.put(p, 0);
-        if (!deaths.containsKey(p)) deaths.put(p, 0);
+        UUID uuid = p.getUniqueId();
 
-        setPlayerRank(p, "default");
+        if (!kills.containsKey(uuid)) kills.put(uuid, 0);
+        if (!deaths.containsKey(uuid)) deaths.put(uuid, 0);
+        if (!playerRanks.containsKey(uuid)) playerRanks.put(uuid, "default");
 
         for (Player online : Bukkit.getOnlinePlayers()) {
             online.showPlayer(p);
             p.showPlayer(online);
         }
+
         teleportToSpawn(p);
+        updateAllPlayerNameTags();
         updateScoreboard(p);
     }
 
@@ -477,14 +557,18 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         final Player victim = e.getEntity();
         e.getDrops().clear();
 
-        deaths.put(victim, deaths.getOrDefault(victim, 0) + 1);
+        UUID vUuid = victim.getUniqueId();
+        deaths.put(vUuid, deaths.getOrDefault(vUuid, 0) + 1);
         updateScoreboard(victim);
 
         if (victim.getKiller() != null) {
             Player killer = victim.getKiller();
-            kills.put(killer, kills.getOrDefault(killer, 0) + 1);
+            UUID kUuid = killer.getUniqueId();
+            kills.put(kUuid, kills.getOrDefault(kUuid, 0) + 1);
             updateScoreboard(killer);
         }
+
+        saveDataToConfig();
 
         if (opponents.containsKey(victim)) {
             final Player winner = opponents.remove(victim);
@@ -537,6 +621,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             updateScoreboard(winner);
             winner.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "L'adversaire s'est deconnecte.");
         }
+        saveDataToConfig();
     }
 
     private void resetVanish(Player p) {
