@@ -14,6 +14,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemDamageEvent;
@@ -50,25 +51,31 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private boolean tournoiEnCours = false;
     private final List<Player> tournoiParticipants = new ArrayList<Player>();
 
-    // Stats & Scoreboard
+    // Stats
     private final Map<Player, Integer> kills = new HashMap<Player, Integer>();
     private final Map<Player, Integer> deaths = new HashMap<Player, Integer>();
     private final List<Player> hiddenScoreboards = new ArrayList<Player>();
+    private final Map<Player, String> playerRanks = new HashMap<Player, String>();
 
-    // Teams Bukkit pour les Couleurs
-    private Scoreboard mainScoreboard;
+    // Scoreboard Unique pour NameTags & Sidebar
+    private Scoreboard board;
+    private Objective sidebarObjective;
     private Team teamAdmin, teamMod, teamFamous, teamVip, teamDefault;
 
     @Override
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
-        setupTeams();
+        setupScoreboardAndTeams();
         getLogger().info("Plugin SoupPvP 1.8 active avec succes !");
     }
 
-    private void setupTeams() {
+    private void setupScoreboardAndTeams() {
         ScoreboardManager manager = Bukkit.getScoreboardManager();
-        mainScoreboard = manager.getMainScoreboard();
+        board = manager.getNewScoreboard();
+
+        sidebarObjective = board.registerNewObjective("datsoup", "dummy");
+        sidebarObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        sidebarObjective.setDisplayName(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------");
 
         teamAdmin = getOrCreateTeam("01Admin", ChatColor.RED);
         teamMod = getOrCreateTeam("02Mod", ChatColor.DARK_PURPLE);
@@ -78,9 +85,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     private Team getOrCreateTeam(String name, ChatColor color) {
-        Team team = mainScoreboard.getTeam(name);
+        Team team = board.getTeam(name);
         if (team == null) {
-            team = mainScoreboard.registerNewTeam(name);
+            team = board.registerNewTeam(name);
         }
         team.setPrefix(color.toString());
         return team;
@@ -144,22 +151,41 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         teamVip.removeEntry(p.getName());
         teamDefault.removeEntry(p.getName());
 
+        ChatColor color = ChatColor.WHITE;
         if (rank.equals("admin")) {
             teamAdmin.addEntry(p.getName());
-            p.setPlayerListName(ChatColor.RED + p.getName());
+            color = ChatColor.RED;
         } else if (rank.equals("mod")) {
             teamMod.addEntry(p.getName());
-            p.setPlayerListName(ChatColor.DARK_PURPLE + p.getName());
+            color = ChatColor.DARK_PURPLE;
         } else if (rank.equals("famous")) {
             teamFamous.addEntry(p.getName());
-            p.setPlayerListName(ChatColor.AQUA + p.getName());
+            color = ChatColor.AQUA;
         } else if (rank.equals("vip")) {
             teamVip.addEntry(p.getName());
-            p.setPlayerListName(ChatColor.GOLD + p.getName());
+            color = ChatColor.GOLD;
         } else {
             teamDefault.addEntry(p.getName());
-            p.setPlayerListName(ChatColor.WHITE + p.getName());
+            color = ChatColor.WHITE;
         }
+
+        playerRanks.put(p, rank);
+        p.setPlayerListName(color + p.getName());
+    }
+
+    // Chat avec couleur du grade
+    @EventHandler
+    public void onChat(AsyncPlayerChatEvent e) {
+        Player p = e.getPlayer();
+        String rank = playerRanks.getOrDefault(p, "default");
+        ChatColor color = ChatColor.WHITE;
+
+        if (rank.equals("admin")) color = ChatColor.RED;
+        else if (rank.equals("mod")) color = ChatColor.DARK_PURPLE;
+        else if (rank.equals("famous")) color = ChatColor.AQUA;
+        else if (rank.equals("vip")) color = ChatColor.GOLD;
+
+        e.setFormat(color + "%1$s" + ChatColor.RESET + ": %2$s");
     }
 
     // ----------------------------------------------------
@@ -171,24 +197,28 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             return;
         }
 
-        Scoreboard sb = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective obj = sb.registerNewObjective("datsoup", "dummy");
-        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-        obj.setDisplayName(ChatColor.WHITE + "" + ChatColor.BOLD + "------------------");
+        p.setScoreboard(board);
 
+        // Mise à jour de la Sidebar individuelle
         int k = kills.getOrDefault(p, 0);
         int d = deaths.getOrDefault(p, 0);
         double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
 
-        obj.getScore(ChatColor.RED + "DatSoup").setScore(7);
-        obj.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "------------------").setScore(6);
-        obj.getScore(ChatColor.WHITE + p.getName()).setScore(5);
-        obj.getScore(ChatColor.WHITE + "Kills: " + ChatColor.GREEN + k).setScore(4);
-        obj.getScore(ChatColor.WHITE + "Deaths: " + ChatColor.RED + d).setScore(3);
-        obj.getScore(ChatColor.WHITE + "Kd: " + ChatColor.YELLOW + kd).setScore(2);
-        obj.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "------------------ ").setScore(1);
+        // Reset des anciens scores
+        for (String entry : board.getEntries()) {
+            if (entry.startsWith(ChatColor.COLOR_CHAR + "")) {
+                board.resetScores(entry);
+            }
+        }
 
-        p.setScoreboard(sb);
+        sidebarObjective.getScore(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------").setScore(7);
+        sidebarObjective.getScore(ChatColor.RED + "DatSoup").setScore(6);
+        sidebarObjective.getScore(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------ ").setScore(5);
+        sidebarObjective.getScore(ChatColor.WHITE + p.getName()).setScore(4);
+        sidebarObjective.getScore(ChatColor.WHITE + "Kills: " + ChatColor.GREEN + k).setScore(3);
+        sidebarObjective.getScore(ChatColor.WHITE + "Deaths: " + ChatColor.RED + d).setScore(2);
+        sidebarObjective.getScore(ChatColor.WHITE + "Kd: " + ChatColor.YELLOW + kd).setScore(1);
+        sidebarObjective.getScore(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "------------------  ").setScore(0);
     }
 
     private void toggleScoreboard(Player p) {
@@ -234,6 +264,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         if (!kills.containsKey(p)) kills.put(p, 0);
         if (!deaths.containsKey(p)) deaths.put(p, 0);
 
+        p.setScoreboard(board);
         setPlayerRank(p, "default");
 
         for (Player online : Bukkit.getOnlinePlayers()) {
@@ -346,7 +377,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         queue1v1.add(p);
         p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "File 1v1 rejointe...");
 
-        // INVENTAIRE COMPLETEMENT VIDÉ (N'A QUE LA REDSTONE EN SLOT 9)
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
         ItemStack redstone = createItem(Material.REDSTONE, ChatColor.RED + "" + ChatColor.BOLD + "Quitter la recherche");
