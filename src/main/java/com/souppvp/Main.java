@@ -247,7 +247,12 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 else if (r.equals("vip")) tVip.addEntry(target.getName());
                 else tDefault.addEntry(target.getName());
 
-                target.setPlayerListName(color + target.getName());
+                // Troncature du TabList si le nom + couleur dépasse 16 caractères
+                String listName = color + target.getName();
+                if (listName.length() > 16) {
+                    listName = listName.substring(0, 16);
+                }
+                target.setPlayerListName(listName);
             }
         }
     }
@@ -281,7 +286,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     // ----------------------------------------------------
     // SCOREBOARD SÉCURISÉ (FORCE '0' POUR KILLS SI NON DÉFINI)
     // ----------------------------------------------------
-    private void updateScoreboard(Player p) {
+private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
             return;
@@ -304,7 +309,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         UUID uuid = p.getUniqueId();
         
-        // Initialisation garantie des statistiques pour éviter l'absence de '0'
         int k = kills.get(uuid) != null ? kills.get(uuid) : 0;
         int d = deaths.get(uuid) != null ? deaths.get(uuid) : 0;
         int ks = killstreaks.get(uuid) != null ? killstreaks.get(uuid) : 0;
@@ -314,7 +318,13 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
 
-        obj.getScore(rankColor + p.getName()).setScore(11);
+        // Nom du joueur bridé à 16 caractères max pour éviter le crash (31 > 16)
+        String playerNameScore = rankColor + p.getName();
+        if (playerNameScore.length() > 16) {
+            playerNameScore = playerNameScore.substring(0, 16);
+        }
+
+        obj.getScore(playerNameScore).setScore(11);
         obj.getScore(ChatColor.GRAY + " ").setScore(10);
         obj.getScore(ChatColor.GRAY + "Kills").setScore(9);
         obj.getScore(ChatColor.RED + "" + k).setScore(8);
