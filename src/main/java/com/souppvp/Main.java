@@ -298,12 +298,12 @@ private void updateScoreboard(Player p) {
             p.setScoreboard(pBoard);
         }
 
-        Objective obj = pBoard.getObjective("souptournament");
+        Objective obj = pBoard.getObjective("souptourn");
         if (obj != null) {
             obj.unregister();
         }
         
-        obj = pBoard.registerNewObjective("souptournament", "dummy");
+        obj = pBoard.registerNewObjective("souptourn", "dummy");
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         obj.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "SoupTournament");
 
@@ -318,24 +318,31 @@ private void updateScoreboard(Player p) {
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
 
-        // Nom du joueur bridé à 16 caractères max pour éviter le crash (31 > 16)
-        String playerNameScore = rankColor + p.getName();
-        if (playerNameScore.length() > 16) {
-            playerNameScore = playerNameScore.substring(0, 16);
-        }
+        // Sécurité stricte 16 caractères max par ligne
+        addSafeScore(obj, rankColor + safeString(p.getName(), 14), 11);
+        addSafeScore(obj, ChatColor.GRAY + " ", 10);
+        addSafeScore(obj, ChatColor.GRAY + "Kills", 9);
+        addSafeScore(obj, ChatColor.RED + "" + k, 8);
+        addSafeScore(obj, ChatColor.GRAY + "Death", 7);
+        addSafeScore(obj, ChatColor.RED + "" + d, 6);
+        addSafeScore(obj, ChatColor.GRAY + "Ratio", 5);
+        addSafeScore(obj, ChatColor.RED + "" + kd, 4);
+        addSafeScore(obj, ChatColor.GRAY + "KS", 3);
+        addSafeScore(obj, ChatColor.RED + "" + ks, 2);
+        addSafeScore(obj, ChatColor.GRAY + "Tournament win", 1);
+        addSafeScore(obj, ChatColor.RED + "" + wins + " ", 0);
+    }
 
-        obj.getScore(playerNameScore).setScore(11);
-        obj.getScore(ChatColor.GRAY + " ").setScore(10);
-        obj.getScore(ChatColor.GRAY + "Kills").setScore(9);
-        obj.getScore(ChatColor.RED + "" + k).setScore(8);
-        obj.getScore(ChatColor.GRAY + "Death").setScore(7);
-        obj.getScore(ChatColor.RED + "" + d).setScore(6);
-        obj.getScore(ChatColor.GRAY + "Ratio").setScore(5);
-        obj.getScore(ChatColor.RED + "" + kd).setScore(4);
-        obj.getScore(ChatColor.GRAY + "KS").setScore(3);
-        obj.getScore(ChatColor.RED + "" + ks).setScore(2);
-        obj.getScore(ChatColor.GRAY + "Tournament win").setScore(1);
-        obj.getScore(ChatColor.RED + "" + wins + " ").setScore(0);
+    private void addSafeScore(Objective obj, String text, int score) {
+        if (text.length() > 16) {
+            text = text.substring(0, 16);
+        }
+        obj.getScore(text).setScore(score);
+    }
+
+    private String safeString(String text, int maxLen) {
+        if (text == null) return "";
+        return text.length() > maxLen ? text.substring(0, maxLen) : text;
     }
 
     private void toggleScoreboard(Player p) {
