@@ -1,9 +1,11 @@
-name: SoupPvP
+name: DatSoup
 version: 1.0
 main: com.souppvp.Main
 api-version: 1.8
-author: Gemini
+author: lvnah
 commands:
+  help:
+    description: Affiche l'aide du serveur DatSoup.
   setspawn:
     description: Definit le spawn principal.
   setarenespawn:
