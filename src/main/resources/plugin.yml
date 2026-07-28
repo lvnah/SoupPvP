@@ -1,0 +1,22 @@
+name: SoupPvP
+version: 1.0
+main: com.souppvp.Main
+api-version: 1.8
+author: Gemini
+commands:
+  setspawn:
+    description: Definit le spawn principal.
+  setarenespawn:
+    description: Definit le spawn de l'arene FFA.
+  set1v1spawn1:
+    description: Definit le premier spawn 1v1.
+  set1v1spawn2:
+    description: Definit le second spawn 1v1.
+  settournoispawn:
+    description: Ajoute un spawn de tournoi.
+  menu:
+    description: Ouvre le menu principal.
+  queue1v1:
+    description: Rejoindre la file d'attente 1v1.
+  tournoi:
+    description: Gestion du tournoi.
