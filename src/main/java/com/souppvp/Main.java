@@ -14,7 +14,9 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -86,6 +88,16 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         return true;
     }
 
+    // ----------------------------------------------------
+    // ANNULATION DE PERTE DE DURABILITÉ (SÉCURITÉ INCASSABLE)
+    // ----------------------------------------------------
+    @EventHandler
+    public void onItemDamage(PlayerItemDamageEvent e) {
+        if (e.getItem() != null && e.getItem().getType() == Material.STONE_SWORD) {
+            e.setCancelled(true);
+        }
+    }
+
     @EventHandler
     public void onSoup(PlayerInteractEvent e) {
         Player p = e.getPlayer();
@@ -95,7 +107,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             
             if (p.getHealth() < p.getMaxHealth()) {
                 e.setCancelled(true);
-                p.setHealth(Math.min(p.getHealth() + 6.0, p.getMaxHealth()));
+                p.setHealth(Math.min(p.getHealth() + 6.0, p.getMaxHealth())); // 6 HP = 3 cœurs
                 p.getItemInHand().setType(Material.BOWL);
             }
         }
@@ -134,9 +146,21 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     @EventHandler
     public void onInteract(PlayerInteractEvent e) {
         Player p = e.getPlayer();
-        if (p.getItemInHand() != null && p.getItemInHand().getType() == Material.COMPASS && e.getAction().name().contains("RIGHT")) {
+        if (p.getItemInHand() != null) {
+            if (p.getItemInHand().getType() == Material.COMPASS && e.getAction().name().contains("RIGHT")) {
+                e.setCancelled(true);
+                openMenu(p);
+            } else if (p.getItemInHand().getType() == Material.REDSTONE && e.getAction().name().contains("RIGHT")) {
+                e.setCancelled(true);
+                leaveQueue1v1(p);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onDrop(PlayerDropItemEvent e) {
+        if (e.getItemDrop().getItemStack().getType() == Material.REDSTONE) {
             e.setCancelled(true);
-            openMenu(p);
         }
     }
 
@@ -153,6 +177,12 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         if (e.getView() == null || e.getView().getTitle() == null) return;
+        
+        if (e.getCurrentItem() != null && e.getCurrentItem().getType() == Material.REDSTONE) {
+            e.setCancelled(true);
+            return;
+        }
+
         if (!e.getView().getTitle().equals(ChatColor.DARK_GRAY + "Menu Principal")) return;
         
         e.setCancelled(true);
@@ -194,6 +224,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         queue1v1.add(p);
         p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "File 1v1 rejointe...");
 
+        ItemStack redstone = createItem(Material.REDSTONE, ChatColor.RED + "" + ChatColor.BOLD + "Quitter la recherche");
+        p.getInventory().setItem(8, redstone);
+
         if (queue1v1.size() >= 2) {
             Player p1 = queue1v1.remove(0);
             Player p2 = queue1v1.remove(0);
@@ -222,6 +255,17 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
+    private void leaveQueue1v1(Player p) {
+        if (queue1v1.contains(p)) {
+            queue1v1.remove(p);
+            p.getInventory().setItem(8, null);
+            p.sendMessage(PREFIX_1V1 + ChatColor.RED + "Tu as quitte la file d'attente 1v1.");
+        }
+    }
+
+    // ----------------------------------------------------
+    // DÉGÂTS : 2 COEURS (4.0 HP) / 2.5 COEURS CRIT (5.0 HP)
+    // ----------------------------------------------------
     @EventHandler
     public void onDamage(EntityDamageByEntityEvent e) {
         if (!(e.getDamager() instanceof Player) || !(e.getEntity() instanceof Player)) return;
@@ -238,9 +282,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         if (attacker.getItemInHand() != null && attacker.getItemInHand().getType() == Material.STONE_SWORD) {
             if (!attacker.isOnGround() && attacker.getFallDistance() > 0) {
-                e.setDamage(3.0);
+                e.setDamage(5.0); // 5.0 HP = 2.5 cœurs
             } else {
-                e.setDamage(2.0);
+                e.setDamage(4.0); // 4.0 HP = 2.0 cœurs
             }
         }
     }
@@ -353,6 +397,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         ItemStack sword = new ItemStack(Material.STONE_SWORD);
         ItemMeta meta = sword.getItemMeta();
         meta.setDisplayName(ChatColor.YELLOW + "Epee de Combat");
+        meta.spigot().setUnbreakable(true);
         sword.setItemMeta(meta);
 
         p.getInventory().setItem(0, sword);
