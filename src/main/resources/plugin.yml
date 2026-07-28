@@ -20,3 +20,10 @@ commands:
     description: Rejoindre la file d'attente 1v1.
   tournoi:
     description: Gestion du tournoi.
+  sb:
+    description: Afficher/Masquer le scoreboard.
+  scoreboard:
+    description: Afficher/Masquer le scoreboard.
+  setrank:
+    description: Definir le grade d'un joueur.
+    permission: souppvp.admin
