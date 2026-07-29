@@ -29,3 +29,5 @@ commands:
   setrank:
     description: Definir le grade d'un joueur.
     permission: souppvp.admin
+  stats:
+    description: Affiche les stats d'un joueur.

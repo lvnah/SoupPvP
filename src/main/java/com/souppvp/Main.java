@@ -49,8 +49,11 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private Location spawn1v1_2;
     private final List<Location> tournoiSpawns = new ArrayList<Location>();
 
-    private final List<Player> queue1v1 = new ArrayList<Player>();
+    // Queues 1v1
+    private final List<Player> queueUnranked = new ArrayList<Player>();
+    private final List<Player> queueRanked = new ArrayList<Player>();
     private final Map<Player, Player> opponents = new HashMap<Player, Player>();
+    private final List<Player> rankedMatch = new ArrayList<Player>(); // Joueurs actuellement en duel Ranked
 
     private boolean tournoiEnCours = false;
     private final List<Player> tournoiParticipants = new ArrayList<Player>();
@@ -60,6 +63,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private final Map<UUID, Integer> deaths = new HashMap<UUID, Integer>();
     private final Map<UUID, Integer> killstreaks = new HashMap<UUID, Integer>();
     private final Map<UUID, Integer> tournoiWins = new HashMap<UUID, Integer>();
+    private final Map<UUID, Integer> elo = new HashMap<UUID, Integer>();
     private final Map<UUID, String> playerRanks = new HashMap<UUID, String>();
     private final List<Player> hiddenScoreboards = new ArrayList<Player>();
 
@@ -95,6 +99,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                     deaths.put(uuid, getConfig().getInt("players." + key + ".deaths", 0));
                     killstreaks.put(uuid, getConfig().getInt("players." + key + ".killstreak", 0));
                     tournoiWins.put(uuid, getConfig().getInt("players." + key + ".tournoiWins", 0));
+                    elo.put(uuid, getConfig().getInt("players." + key + ".elo", 500));
                     playerRanks.put(uuid, getConfig().getString("players." + key + ".rank", "default"));
                 } catch (Exception ignored) {}
             }
@@ -113,6 +118,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             getConfig().set("players." + uuid.toString() + ".deaths", deaths.getOrDefault(uuid, 0));
             getConfig().set("players." + uuid.toString() + ".killstreak", killstreaks.getOrDefault(uuid, 0));
             getConfig().set("players." + uuid.toString() + ".tournoiWins", tournoiWins.getOrDefault(uuid, 0));
+            getConfig().set("players." + uuid.toString() + ".elo", elo.getOrDefault(uuid, 500));
             getConfig().set("players." + uuid.toString() + ".rank", playerRanks.getOrDefault(uuid, "default"));
         }
         saveConfig();
@@ -168,7 +174,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         } else if (name.equals("menu")) {
             openMenu(p);
         } else if (name.equals("queue1v1")) {
-            joinQueue1v1(p);
+            joinQueueUnranked(p);
         } else if (name.equals("tournoi")) {
             if (args.length > 0 && args[0].equalsIgnoreCase("start")) {
                 startTournoi(p);
@@ -203,7 +209,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "===== COMMANDES DATSOUP =====");
         p.sendMessage(ChatColor.DARK_PURPLE + "/menu " + ChatColor.GRAY + "- Ouvre le menu des modes de jeu");
         p.sendMessage(ChatColor.DARK_PURPLE + "/stats [joueur] " + ChatColor.GRAY + "- Voir tes statistiques");
-        p.sendMessage(ChatColor.DARK_PURPLE + "/queue1v1 " + ChatColor.GRAY + "- Rejoindre la file d'attente 1v1");
         p.sendMessage(ChatColor.DARK_PURPLE + "/sb ou /scoreboard " + ChatColor.GRAY + "- Masquer/Afficher le scoreboard");
         
         if (p.hasPermission("souppvp.admin") || p.isOp()) {
@@ -227,6 +232,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         int d = deaths.getOrDefault(uuid, 0);
         int ks = killstreaks.getOrDefault(uuid, 0);
         int wins = tournoiWins.getOrDefault(uuid, 0);
+        int pElo = elo.getOrDefault(uuid, 500);
         double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
@@ -234,6 +240,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(" ");
         p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "===== STATISTIQUES (" + target.getName() + ") =====");
         p.sendMessage(ChatColor.GRAY + "Rank: " + rankColor + rank);
+        p.sendMessage(ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo + " (" + getEloRankName(pElo) + ChatColor.GRAY + ")");
         p.sendMessage(ChatColor.GRAY + "Kills: " + ChatColor.DARK_PURPLE + k);
         p.sendMessage(ChatColor.GRAY + "Deaths: " + ChatColor.DARK_PURPLE + d);
         p.sendMessage(ChatColor.GRAY + "Ratio: " + ChatColor.DARK_PURPLE + kd);
@@ -243,6 +250,15 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(" ");
     }
 
+    private String getEloRankName(int playerElo) {
+        if (playerElo < 600) return ChatColor.DARK_GRAY + "Bronze";
+        if (playerElo < 800) return ChatColor.GRAY + "Silver";
+        if (playerElo < 1000) return ChatColor.GOLD + "Gold";
+        if (playerElo < 1200) return ChatColor.AQUA + "Platine";
+        if (playerElo < 1400) return ChatColor.BLUE + "Diamant";
+        return ChatColor.DARK_RED + "Supreme";
+    }
+
     private void setPlayerRank(Player p, String rank) {
         playerRanks.put(p.getUniqueId(), rank);
         updateAllPlayerNameTags();
@@ -250,7 +266,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     private ChatColor getRankColor(String rank) {
-        if (rank.equals("admin")) return ChatColor.RED; // ADMIN PASSE EN ROUGE (&c)
+        if (rank.equals("admin")) return ChatColor.RED;
         if (rank.equals("mod")) return ChatColor.LIGHT_PURPLE;
         if (rank.equals("famous")) return ChatColor.AQUA;
         if (rank.equals("vip")) return ChatColor.GOLD;
@@ -305,13 +321,16 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         return t;
     }
 
-    @EventHandler
+@EventHandler
     public void onChat(AsyncPlayerChatEvent e) {
         Player p = e.getPlayer();
         String rank = playerRanks.getOrDefault(p.getUniqueId(), "default");
         ChatColor color = getRankColor(rank);
 
-        e.setFormat("<" + color + "%1$s" + ChatColor.RESET + "> %2$s");
+        int pElo = elo.getOrDefault(p.getUniqueId(), 500);
+        String eloRank = getEloRankName(pElo);
+
+        e.setFormat("("eloRank + ")" + " <" + color + "%1$s" + ChatColor.RESET + "> %2$s");
     }
 
     @EventHandler
@@ -322,10 +341,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
-    // ----------------------------------------------------
-    // SCOREBOARD SANS LIGNES SÉPARATRICES
-    // ----------------------------------------------------
-    private void updateScoreboard(Player p) {
+private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
             return;
@@ -347,11 +363,13 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         obj.setDisplayName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "SoupTournament");
 
         UUID uuid = p.getUniqueId();
-        int wins = tournoiWins.get(uuid) != null ? tournoiWins.get(uuid) : 0;
+        int wins = tournoiWins.getOrDefault(uuid, 0);
+        int pElo = elo.getOrDefault(uuid, 500);
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
 
-        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 2);
+        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 3);
+        addSafeScore(obj, ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo, 2);
         addSafeScore(obj, ChatColor.GRAY + "Wins: " + ChatColor.DARK_PURPLE + wins, 1);
     }
 
@@ -412,12 +430,19 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         if (!deaths.containsKey(uuid)) deaths.put(uuid, 0);
         if (!killstreaks.containsKey(uuid)) killstreaks.put(uuid, 0);
         if (!tournoiWins.containsKey(uuid)) tournoiWins.put(uuid, 0);
+        if (!elo.containsKey(uuid)) elo.put(uuid, 500);
         if (!playerRanks.containsKey(uuid)) playerRanks.put(uuid, "default");
 
         for (Player online : Bukkit.getOnlinePlayers()) {
             online.showPlayer(p);
             p.showPlayer(online);
         }
+
+        // Clear chat du joueur
+        for (int i = 0; i < 100; i++) {
+            p.sendMessage(" ");
+        }
+        p.sendMessage(ChatColor.GRAY + "Bienvenue sur " + ChatColor.DARK_PURPLE + "SoupTournament");
 
         teleportToSpawn(p);
         updateAllPlayerNameTags();
@@ -429,10 +454,20 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         e.setQuitMessage(null);
 
         Player p = e.getPlayer();
-        queue1v1.remove(p);
+        queueUnranked.remove(p);
+        queueRanked.remove(p);
+
         if (opponents.containsKey(p)) {
             Player winner = opponents.remove(p);
             opponents.remove(winner);
+            boolean isRanked = rankedMatch.contains(p);
+            rankedMatch.remove(p);
+            rankedMatch.remove(winner);
+
+            if (isRanked) {
+                processRankedElo(winner, p);
+            }
+
             resetVanish(winner);
             teleportToSpawn(winner);
             updateScoreboard(winner);
@@ -473,17 +508,15 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 openMenu(p);
             } else if (p.getItemInHand().getType() == Material.REDSTONE && e.getAction().name().contains("RIGHT")) {
                 e.setCancelled(true);
-                leaveQueue1v1(p);
+                leaveQueues(p);
             }
         }
     }
 
-    // EMPÊCHE LE DROP ET CLEAR AU SOL EN 5s AVEC PARTICULES
     @EventHandler
     public void onDrop(PlayerDropItemEvent e) {
         Material type = e.getItemDrop().getItemStack().getType();
         
-        // Bloque le jet de la Boussole et de la Redstone
         if (type == Material.REDSTONE || type == Material.COMPASS) {
             e.setCancelled(true);
             return;
@@ -491,7 +524,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         final Item droppedItem = e.getItemDrop();
 
-        // Supprime tout item au sol au bout de 5 secondes avec effet de particule de charbon/fumée
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -500,20 +532,20 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                     droppedItem.remove();
                 }
             }
-        }.runTaskLater(this, 100L); // 100 ticks = 5 secondes
+        }.runTaskLater(this, 100L);
     }
 
     private void openMenu(Player p) {
         Inventory inv = Bukkit.createInventory(null, 27, ChatColor.DARK_GRAY + "Menu");
         
         inv.setItem(11, createItem(Material.STONE_SWORD, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "Arene FFA"));
-        inv.setItem(13, createItem(Material.MUSHROOM_SOUP, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "1v1"));
+        inv.setItem(13, createItem(Material.MUSHROOM_SOUP, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "1v1 Unranked"));
+        inv.setItem(14, createItem(Material.DIAMOND_SWORD, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "1v1 Ranked"));
         inv.setItem(15, createItem(Material.NETHER_STAR, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "Retour au Spawn"));
 
         p.openInventory(inv);
     }
 
-    // IMPOSSIBLE DE DÉPLACER LA BOUSSOLE ET LA REDSTONE DANS L'INVENTAIRE
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         if (e.getCurrentItem() != null) {
@@ -543,68 +575,111 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             }
         } else if (slot == 13) {
             p.closeInventory();
-            joinQueue1v1(p);
+            joinQueueUnranked(p);
+        } else if (slot == 14) {
+            p.closeInventory();
+            joinQueueRanked(p);
         } else if (slot == 15) {
             p.closeInventory();
             teleportToSpawn(p);
         }
     }
 
-    private void joinQueue1v1(Player p) {
+    private void joinQueueUnranked(Player p) {
         if (opponents.containsKey(p)) {
             p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Tu es deja en duel !");
             return;
         }
-        if (queue1v1.contains(p)) {
+        if (queueUnranked.contains(p) || queueRanked.contains(p)) {
             p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Tu es deja en recherche.");
             return;
         }
         if (spawn1v1_1 == null || spawn1v1_2 == null) {
-            p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Spawns 1v1 non me-configures !");
+            p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Spawns 1v1 non configures !");
             return;
         }
 
-        queue1v1.add(p);
-        p.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "File 1v1 rejointe...");
+        queueUnranked.add(p);
+        p.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "File " + ChatColor.DARK_PURPLE + "Unranked" + ChatColor.GRAY + " rejointe...");
 
+        setupQueueItem(p);
+
+        if (queueUnranked.size() >= 2) {
+            Player p1 = queueUnranked.remove(0);
+            Player p2 = queueUnranked.remove(0);
+            startDuel(p1, p2, false);
+        }
+    }
+
+    private void joinQueueRanked(Player p) {
+        if (opponents.containsKey(p)) {
+            p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Tu es deja en duel !");
+            return;
+        }
+        if (queueUnranked.contains(p) || queueRanked.contains(p)) {
+            p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Tu es deja en recherche.");
+            return;
+        }
+        if (spawn1v1_1 == null || spawn1v1_2 == null) {
+            p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Spawns 1v1 non configures !");
+            return;
+        }
+
+        queueRanked.add(p);
+        p.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "File " + ChatColor.DARK_PURPLE + "Ranked" + ChatColor.GRAY + " rejointe...");
+
+        setupQueueItem(p);
+
+        if (queueRanked.size() >= 2) {
+            Player p1 = queueRanked.remove(0);
+            Player p2 = queueRanked.remove(0);
+            startDuel(p1, p2, true);
+        }
+    }
+
+    private void setupQueueItem(Player p) {
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
         ItemStack redstone = createItem(Material.REDSTONE, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "Quitter la recherche");
         p.getInventory().setItem(8, redstone);
-
-        if (queue1v1.size() >= 2) {
-            Player p1 = queue1v1.remove(0);
-            Player p2 = queue1v1.remove(0);
-
-            opponents.put(p1, p2);
-            opponents.put(p2, p1);
-
-            for (Player online : Bukkit.getOnlinePlayers()) {
-                if (online != p1 && online != p2) {
-                    online.hidePlayer(p1);
-                    online.hidePlayer(p2);
-                }
-            }
-
-            p1.showPlayer(p2);
-            p2.showPlayer(p1);
-
-            p1.teleport(spawn1v1_1);
-            p2.teleport(spawn1v1_2);
-
-            giveKit(p1);
-            giveKit(p2);
-
-            p1.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Duel contre " + ChatColor.DARK_PURPLE + p2.getName() + ChatColor.GRAY + " !");
-            p2.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Duel contre " + ChatColor.DARK_PURPLE + p1.getName() + ChatColor.GRAY + " !");
-        }
     }
 
-    private void leaveQueue1v1(Player p) {
-        if (queue1v1.contains(p)) {
-            queue1v1.remove(p);
+    private void startDuel(Player p1, Player p2, boolean isRanked) {
+        opponents.put(p1, p2);
+        opponents.put(p2, p1);
+
+        if (isRanked) {
+            rankedMatch.add(p1);
+            rankedMatch.add(p2);
+        }
+
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (online != p1 && online != p2) {
+                online.hidePlayer(p1);
+                online.hidePlayer(p2);
+            }
+        }
+
+        p1.showPlayer(p2);
+        p2.showPlayer(p1);
+
+        p1.teleport(spawn1v1_1);
+        p2.teleport(spawn1v1_2);
+
+        giveKit(p1);
+        giveKit(p2);
+
+        String modeName = isRanked ? ChatColor.DARK_PURPLE + "Ranked" : ChatColor.GRAY + "Unranked";
+        p1.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Duel " + modeName + ChatColor.GRAY + " contre " + ChatColor.DARK_PURPLE + p2.getName() + ChatColor.GRAY + " !");
+        p2.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Duel " + modeName + ChatColor.GRAY + " contre " + ChatColor.DARK_PURPLE + p1.getName() + ChatColor.GRAY + " !");
+    }
+
+    private void leaveQueues(Player p) {
+        if (queueUnranked.contains(p) || queueRanked.contains(p)) {
+            queueUnranked.remove(p);
+            queueRanked.remove(p);
             teleportToSpawn(p);
-            p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Tu as quitte la file d'attente 1v1.");
+            p.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Tu as quitte la file d'attente.");
         }
     }
 
@@ -640,7 +715,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         UUID vUuid = victim.getUniqueId();
         deaths.put(vUuid, deaths.getOrDefault(vUuid, 0) + 1);
         killstreaks.put(vUuid, 0);
-        updateScoreboard(victim);
 
         if (victim.getKiller() != null) {
             Player killer = victim.getKiller();
@@ -650,17 +724,26 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             updateScoreboard(killer);
         }
 
+        updateScoreboard(victim);
         saveDataToConfig();
 
         if (opponents.containsKey(victim)) {
             final Player winner = opponents.remove(victim);
             opponents.remove(winner);
 
+            boolean isRanked = rankedMatch.contains(victim);
+            rankedMatch.remove(victim);
+            rankedMatch.remove(winner);
+
             resetVanish(victim);
             resetVanish(winner);
 
-            winner.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Victoire contre " + ChatColor.DARK_PURPLE + victim.getName() + ChatColor.GRAY + " !");
-            victim.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Defaite !");
+            if (isRanked) {
+                processRankedElo(winner, victim);
+            } else {
+                winner.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Victoire contre " + ChatColor.DARK_PURPLE + victim.getName() + ChatColor.GRAY + " !");
+                victim.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Defaite !");
+            }
 
             Bukkit.getScheduler().runTaskLater(this, new Runnable() {
                 @Override
@@ -701,6 +784,27 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 victim.spigot().respawn();
             }
         }, 2L);
+    }
+
+    private void processRankedElo(Player winner, Player loser) {
+        UUID wUuid = winner.getUniqueId();
+        UUID lUuid = loser.getUniqueId();
+
+        int wElo = elo.getOrDefault(wUuid, 500);
+        int lElo = elo.getOrDefault(lUuid, 500);
+
+        int gain = 20;
+        int loss = 15;
+
+        elo.put(wUuid, wElo + gain);
+        elo.put(lUuid, Math.max(0, lElo - loss));
+
+        winner.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Victoire contre " + ChatColor.DARK_PURPLE + loser.getName() + ChatColor.GRAY + " (" + ChatColor.GREEN + "+" + gain + " Elo" + ChatColor.GRAY + ")");
+        loser.sendMessage(PREFIX_1V1 + ChatColor.DARK_PURPLE + "Defaite " + ChatColor.GRAY + "contre " + ChatColor.DARK_PURPLE + winner.getName() + ChatColor.GRAY + " (" + ChatColor.RED + "-" + loss + " Elo" + ChatColor.GRAY + ")");
+
+        updateScoreboard(winner);
+        updateScoreboard(loser);
+        saveDataToConfig();
     }
 
     private void resetVanish(Player p) {
@@ -749,7 +853,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }.runTaskTimer(this, 0L, 20L);
     }
 
-    // KIT : ÉPÉE EN PIERRE SANS RENOMMAGE (NOM PAR DÉFAUT DE MINECRAFT)
     private void giveKit(Player p) {
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
