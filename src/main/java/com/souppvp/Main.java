@@ -248,7 +248,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     private ChatColor getRankColor(String rank) {
-        if (rank.equals("admin")) return ChatColor.RED;
+        if (rank.equals("admin")) return ChatColor.DARK_PURPLE;
         if (rank.equals("mod")) return ChatColor.LIGHT_PURPLE;
         if (rank.equals("famous")) return ChatColor.AQUA;
         if (rank.equals("vip")) return ChatColor.GOLD;
@@ -263,7 +263,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 viewer.setScoreboard(sb);
             }
 
-            Team tAdmin = getOrCreateTeam(sb, "01Admin", ChatColor.RED);
+            Team tAdmin = getOrCreateTeam(sb, "01Admin", ChatColor.DARK_PURPLE);
             Team tMod = getOrCreateTeam(sb, "02Mod", ChatColor.LIGHT_PURPLE);
             Team tFamous = getOrCreateTeam(sb, "03Famous", ChatColor.AQUA);
             Team tVip = getOrCreateTeam(sb, "04Vip", ChatColor.GOLD);
@@ -321,7 +321,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // SCOREBOARD FIXÉ AVEC LIGNES BARRÉES PARFAITES (&m)
+    // SCOREBOARD AVEC LIGNES SEPARATRICES UNIQUES (&7&m----------------)
     // ----------------------------------------------------
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
@@ -349,14 +349,16 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
 
-        // Lignes droites et pleines grâce à &m (Strikethrough)
-        String line1 = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "----------------";
-        String line2 = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "----------------" + ChatColor.RESET;
+        // Chaines exactes de 16 caracteres max avec suffixes uniques invisibles pour forcer Bukkit a afficher toutes les lignes
+        String sepTop = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "--------------" + ChatColor.RED;
+        String sepMid = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "--------------" + ChatColor.BLUE;
+        String sepBot = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "--------------" + ChatColor.GREEN;
 
-        addSafeScore(obj, line1, 4);
-        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 3);
+        addSafeScore(obj, sepTop, 5);
+        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 4);
+        addSafeScore(obj, sepMid, 3);
         addSafeScore(obj, ChatColor.GRAY + "Wins: " + ChatColor.DARK_PURPLE + wins, 2);
-        addSafeScore(obj, line2, 1);
+        addSafeScore(obj, sepBot, 1);
     }
 
     private void addSafeScore(Objective obj, String text, int score) {
