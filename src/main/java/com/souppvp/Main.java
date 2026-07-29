@@ -238,15 +238,13 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         ChatColor rankColor = getRankColor(rank);
 
         p.sendMessage(" ");
-        p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "===== STATISTIQUES (" + target.getName() + ") =====");
         p.sendMessage(ChatColor.GRAY + "Rank: " + rankColor + rank);
-        p.sendMessage(ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo + " (" + getEloRankName(pElo) + ChatColor.GRAY + ")");
+        p.sendMessage(ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo + ChatColor.RESET +  + " (" + getEloRankName(pElo) + ")");
         p.sendMessage(ChatColor.GRAY + "Kills: " + ChatColor.DARK_PURPLE + k);
         p.sendMessage(ChatColor.GRAY + "Deaths: " + ChatColor.DARK_PURPLE + d);
         p.sendMessage(ChatColor.GRAY + "Ratio: " + ChatColor.DARK_PURPLE + kd);
         p.sendMessage(ChatColor.GRAY + "Killstreak: " + ChatColor.DARK_PURPLE + ks);
         p.sendMessage(ChatColor.GRAY + "Tournament wins: " + ChatColor.DARK_PURPLE + wins);
-        p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "======================================");
         p.sendMessage(" ");
     }
 
@@ -330,7 +328,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         int pElo = elo.getOrDefault(p.getUniqueId(), 500);
         String eloRank = getEloRankName(pElo);
 
-        e.setFormat("(" + eloRank + ")" + " <" + color + "%1$s" + ChatColor.RESET + "> %2$s");
+        e.setFormat(ChatColor.RESET + "(" + eloRank + ")" + " <" + color + "%1$s" + ChatColor.RESET + "> %2$s");
     }
 
     @EventHandler
