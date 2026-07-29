@@ -2,11 +2,13 @@ package com.souppvp;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -248,7 +250,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     private ChatColor getRankColor(String rank) {
-        if (rank.equals("admin")) return ChatColor.DARK_PURPLE;
+        if (rank.equals("admin")) return ChatColor.RED; // ADMIN PASSE EN ROUGE (&c)
         if (rank.equals("mod")) return ChatColor.LIGHT_PURPLE;
         if (rank.equals("famous")) return ChatColor.AQUA;
         if (rank.equals("vip")) return ChatColor.GOLD;
@@ -263,7 +265,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 viewer.setScoreboard(sb);
             }
 
-            Team tAdmin = getOrCreateTeam(sb, "01Admin", ChatColor.DARK_PURPLE);
+            Team tAdmin = getOrCreateTeam(sb, "01Admin", ChatColor.RED);
             Team tMod = getOrCreateTeam(sb, "02Mod", ChatColor.LIGHT_PURPLE);
             Team tFamous = getOrCreateTeam(sb, "03Famous", ChatColor.AQUA);
             Team tVip = getOrCreateTeam(sb, "04Vip", ChatColor.GOLD);
@@ -321,7 +323,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // SCOREBOARD AVEC LIGNES SEPARATRICES UNIQUES (&7&m----------------)
+    // SCOREBOARD SANS LIGNES SÉPARATRICES
     // ----------------------------------------------------
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
@@ -349,16 +351,8 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
 
-        // Chaines exactes de 16 caracteres max avec suffixes uniques invisibles pour forcer Bukkit a afficher toutes les lignes
-        String sepTop = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "--------------" + ChatColor.RED;
-        String sepMid = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "--------------" + ChatColor.BLUE;
-        String sepBot = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "--------------" + ChatColor.GREEN;
-
-        addSafeScore(obj, sepTop, 5);
-        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 4);
-        addSafeScore(obj, sepMid, 3);
-        addSafeScore(obj, ChatColor.GRAY + "Wins: " + ChatColor.DARK_PURPLE + wins, 2);
-        addSafeScore(obj, sepBot, 1);
+        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 2);
+        addSafeScore(obj, ChatColor.GRAY + "Wins: " + ChatColor.DARK_PURPLE + wins, 1);
     }
 
     private void addSafeScore(Objective obj, String text, int score) {
@@ -484,13 +478,30 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
+    // EMPÊCHE LE DROP ET CLEAR AU SOL EN 5s AVEC PARTICULES
     @EventHandler
     public void onDrop(PlayerDropItemEvent e) {
         Material type = e.getItemDrop().getItemStack().getType();
+        
+        // Bloque le jet de la Boussole et de la Redstone
         if (type == Material.REDSTONE || type == Material.COMPASS) {
             e.setCancelled(true);
+            return;
         }
-    }   
+
+        final Item droppedItem = e.getItemDrop();
+
+        // Supprime tout item au sol au bout de 5 secondes avec effet de particule de charbon/fumée
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (droppedItem != null && droppedItem.isValid() && !droppedItem.isDead()) {
+                    droppedItem.getWorld().playEffect(droppedItem.getLocation(), Effect.SMOKE, 4);
+                    droppedItem.remove();
+                }
+            }
+        }.runTaskLater(this, 100L); // 100 ticks = 5 secondes
+    }
 
     private void openMenu(Player p) {
         Inventory inv = Bukkit.createInventory(null, 27, ChatColor.DARK_GRAY + "Menu");
@@ -502,14 +513,18 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.openInventory(inv);
     }
 
+    // IMPOSSIBLE DE DÉPLACER LA BOUSSOLE ET LA REDSTONE DANS L'INVENTAIRE
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
-        if (e.getView() == null || e.getView().getTitle() == null) return;
-        
-        if (e.getCurrentItem() != null && e.getCurrentItem().getType() == Material.REDSTONE) {
-            e.setCancelled(true);
-            return;
+        if (e.getCurrentItem() != null) {
+            Material type = e.getCurrentItem().getType();
+            if (type == Material.COMPASS || type == Material.REDSTONE) {
+                e.setCancelled(true);
+                return;
+            }
         }
+
+        if (e.getView() == null || e.getView().getTitle() == null) return;
 
         if (!e.getView().getTitle().equals(ChatColor.DARK_GRAY + "Menu")) return;
         
@@ -734,6 +749,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }.runTaskTimer(this, 0L, 20L);
     }
 
+    // KIT : ÉPÉE EN PIERRE SANS RENOMMAGE (NOM PAR DÉFAUT DE MINECRAFT)
     private void giveKit(Player p) {
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
@@ -742,7 +758,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         ItemStack sword = new ItemStack(Material.STONE_SWORD);
         ItemMeta meta = sword.getItemMeta();
-        meta.setDisplayName(ChatColor.DARK_PURPLE + "Epee de Combat");
         meta.spigot().setUnbreakable(true);
         sword.setItemMeta(meta);
 
