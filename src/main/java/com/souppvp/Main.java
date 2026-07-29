@@ -128,6 +128,21 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             return true;
         }
 
+        if (name.equals("stats")) {
+            Player target = p;
+            if (args.length > 0) {
+                Player searched = Bukkit.getPlayer(args[0]);
+                if (searched != null) {
+                    target = searched;
+                } else {
+                    p.sendMessage(PREFIX + ChatColor.DARK_PURPLE + "Joueur introuvable.");
+                    return true;
+                }
+            }
+            sendStats(p, target);
+            return true;
+        }
+
         if (name.equals("setspawn")) {
             spawnMain = p.getLocation();
             saveDataToConfig();
@@ -185,6 +200,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(" ");
         p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "===== COMMANDES DATSOUP =====");
         p.sendMessage(ChatColor.DARK_PURPLE + "/menu " + ChatColor.GRAY + "- Ouvre le menu des modes de jeu");
+        p.sendMessage(ChatColor.DARK_PURPLE + "/stats [joueur] " + ChatColor.GRAY + "- Voir tes statistiques");
         p.sendMessage(ChatColor.DARK_PURPLE + "/queue1v1 " + ChatColor.GRAY + "- Rejoindre la file d'attente 1v1");
         p.sendMessage(ChatColor.DARK_PURPLE + "/sb ou /scoreboard " + ChatColor.GRAY + "- Masquer/Afficher le scoreboard");
         
@@ -200,6 +216,28 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             p.sendMessage(ChatColor.DARK_PURPLE + "/setrank <joueur> <rank> " + ChatColor.GRAY + "- Changer le grade (admin, mod, famous, vip, default)");
         }
         p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "=============================");
+        p.sendMessage(" ");
+    }
+
+    private void sendStats(Player p, Player target) {
+        UUID uuid = target.getUniqueId();
+        int k = kills.getOrDefault(uuid, 0);
+        int d = deaths.getOrDefault(uuid, 0);
+        int ks = killstreaks.getOrDefault(uuid, 0);
+        int wins = tournoiWins.getOrDefault(uuid, 0);
+        double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
+        String rank = playerRanks.getOrDefault(uuid, "default");
+        ChatColor rankColor = getRankColor(rank);
+
+        p.sendMessage(" ");
+        p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "===== STATISTIQUES (" + target.getName() + ") =====");
+        p.sendMessage(ChatColor.GRAY + "Rank: " + rankColor + rank);
+        p.sendMessage(ChatColor.GRAY + "Kills: " + ChatColor.DARK_PURPLE + k);
+        p.sendMessage(ChatColor.GRAY + "Deaths: " + ChatColor.DARK_PURPLE + d);
+        p.sendMessage(ChatColor.GRAY + "Ratio: " + ChatColor.DARK_PURPLE + kd);
+        p.sendMessage(ChatColor.GRAY + "Killstreak: " + ChatColor.DARK_PURPLE + ks);
+        p.sendMessage(ChatColor.GRAY + "Tournament wins: " + ChatColor.DARK_PURPLE + wins);
+        p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "======================================");
         p.sendMessage(" ");
     }
 
@@ -283,7 +321,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // NOUVEAU SCOREBOARD &5
+    // SCOREBOARD PARFAITEMENT ADAPTÉ À LA LIMITATION 1.8 (MAX 16 CARACTÈRES)
     // ----------------------------------------------------
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
@@ -307,28 +345,17 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         obj.setDisplayName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "SoupTournament");
 
         UUID uuid = p.getUniqueId();
-        
-        int k = kills.get(uuid) != null ? kills.get(uuid) : 0;
-        int d = deaths.get(uuid) != null ? deaths.get(uuid) : 0;
-        int ks = killstreaks.get(uuid) != null ? killstreaks.get(uuid) : 0;
         int wins = tournoiWins.get(uuid) != null ? tournoiWins.get(uuid) : 0;
-        double kd = (d == 0) ? k : (double) Math.round(((double) k / d) * 10.0) / 10.0;
-
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
 
-        String lineBar = ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "---------------------";
-
-        addSafeScore(obj, lineBar, 13);
-        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + rank, 12);
-        addSafeScore(obj, lineBar + " ", 11);
-        addSafeScore(obj, ChatColor.GRAY + "Kills: " + ChatColor.DARK_PURPLE + k, 10);
-        addSafeScore(obj, ChatColor.GRAY + "Death: " + ChatColor.DARK_PURPLE + d, 9);
-        addSafeScore(obj, ChatColor.GRAY + "Ratio: " + ChatColor.DARK_PURPLE + kd, 8);
-        addSafeScore(obj, ChatColor.GRAY + "KS: " + ChatColor.DARK_PURPLE + ks, 7);
-        addSafeScore(obj, ChatColor.GRAY + "Tournament win: " + ChatColor.DARK_PURPLE + wins, 6);
-        addSafeScore(obj, lineBar + "  ", 5);
-        addSafeScore(obj, ChatColor.DARK_PURPLE + "mc.souptournament.eu", 4);
+        // Toutes les lignes font strictly <= 16 caractères pour éviter la tronquature en 1.8
+        addSafeScore(obj, ChatColor.GRAY + "----------------", 6);
+        addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 5);
+        addSafeScore(obj, ChatColor.GRAY + "--------------- ", 4);
+        addSafeScore(obj, ChatColor.GRAY + "Wins: " + ChatColor.DARK_PURPLE + wins, 3);
+        addSafeScore(obj, ChatColor.GRAY + "---------------- ", 2);
+        addSafeScore(obj, ChatColor.DARK_PURPLE + "souptournament.eu", 1);
     }
 
     private void addSafeScore(Objective obj, String text, int score) {
@@ -336,6 +363,11 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             text = text.substring(0, 16);
         }
         obj.getScore(text).setScore(score);
+    }
+
+    private String safeString(String text, int maxLen) {
+        if (text == null) return "";
+        return text.length() > maxLen ? text.substring(0, maxLen) : text;
     }
 
     private void toggleScoreboard(Player p) {
