@@ -330,7 +330,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         int pElo = elo.getOrDefault(p.getUniqueId(), 500);
         String eloRank = getEloRankName(pElo);
 
-        e.setFormat("("eloRank + ")" + " <" + color + "%1$s" + ChatColor.RESET + "> %2$s");
+        e.setFormat("(" + eloRank + ")" + " <" + color + "%1$s" + ChatColor.RESET + "> %2$s");
     }
 
     @EventHandler
