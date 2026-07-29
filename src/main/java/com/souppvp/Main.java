@@ -37,9 +37,9 @@ import java.util.UUID;
 
 public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
-    private final String PREFIX = ChatColor.GRAY + "[" + ChatColor.RED + "SoupPvP" + ChatColor.GRAY + "] " + ChatColor.RESET;
-    private final String PREFIX_1V1 = ChatColor.GRAY + "[" + ChatColor.YELLOW + "1v1" + ChatColor.GRAY + "] " + ChatColor.RESET;
-    private final String PREFIX_TOURNOI = ChatColor.GRAY + "[" + ChatColor.DARK_RED + "Tournoi" + ChatColor.GRAY + "] " + ChatColor.RESET;
+    private final String PREFIX = ChatColor.GRAY + "[" + ChatColor.RED + "SoupTournament" + ChatColor.GRAY + "] " + ChatColor.RESET;
+    private final String PREFIX_1V1 = ChatColor.GRAY + "[" + ChatColor.RED + "1v1" + ChatColor.GRAY + "] " + ChatColor.RESET;
+    private final String PREFIX_TOURNOI = ChatColor.GRAY + "[" + ChatColor.RED + "Tournoi" + ChatColor.GRAY + "] " + ChatColor.RESET;
 
     private Location spawnMain;
     private Location spawnArene;
@@ -131,23 +131,23 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         if (name.equals("setspawn")) {
             spawnMain = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn principal defini !");
+            p.sendMessage(PREFIX + ChatColor.GRAY + "Spawn principal defini !");
         } else if (name.equals("setarenespawn")) {
             spawnArene = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Spawn de l'Arene FFA defini !");
+            p.sendMessage(PREFIX + ChatColor.GRAY + "Spawn de l'Arene FFA defini !");
         } else if (name.equals("set1v1spawn1")) {
             spawn1v1_1 = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #1 defini !");
+            p.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Spawn 1v1 #1 defini !");
         } else if (name.equals("set1v1spawn2")) {
             spawn1v1_2 = p.getLocation();
             saveDataToConfig();
-            p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Spawn 1v1 #2 defini !");
+            p.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Spawn 1v1 #2 defini !");
         } else if (name.equals("settournoispawn")) {
             tournoiSpawns.add(p.getLocation());
             saveDataToConfig();
-            p.sendMessage(PREFIX_TOURNOI + ChatColor.GREEN + "Spawn tournoi #" + tournoiSpawns.size() + " ajoute !");
+            p.sendMessage(PREFIX_TOURNOI + ChatColor.GRAY + "Spawn tournoi #" + tournoiSpawns.size() + " ajoute !");
         } else if (name.equals("menu")) {
             openMenu(p);
         } else if (name.equals("queue1v1")) {
@@ -156,7 +156,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             if (args.length > 0 && args[0].equalsIgnoreCase("start")) {
                 startTournoi(p);
             } else {
-                p.sendMessage(PREFIX_TOURNOI + ChatColor.YELLOW + "Usage: /tournoi start");
+                p.sendMessage(PREFIX_TOURNOI + ChatColor.GRAY + "Usage: /tournoi start");
             }
         } else if (name.equals("sb") || name.equals("scoreboard")) {
             toggleScoreboard(p);
@@ -166,7 +166,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 return true;
             }
             if (args.length < 2) {
-                p.sendMessage(PREFIX + ChatColor.YELLOW + "Usage: /setrank <joueur> <admin|mod|famous|vip|default>");
+                p.sendMessage(PREFIX + ChatColor.GRAY + "Usage: /setrank <joueur> <admin|mod|famous|vip|default>");
                 return true;
             }
             Player target = Bukkit.getPlayer(args[0]);
@@ -176,7 +176,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             }
             setPlayerRank(target, args[1].toLowerCase());
             saveDataToConfig();
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Grade de " + target.getName() + " mis a jour !");
+            p.sendMessage(PREFIX + ChatColor.GRAY + "Grade de " + target.getName() + " mis a jour !");
         }
         return true;
     }
@@ -184,9 +184,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private void sendHelpMenu(Player p) {
         p.sendMessage(" ");
         p.sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "===== COMMANDES DATSOUP =====");
-        p.sendMessage(ChatColor.YELLOW + "/menu " + ChatColor.GRAY + "- Ouvre le menu des modes de jeu");
-        p.sendMessage(ChatColor.YELLOW + "/queue1v1 " + ChatColor.GRAY + "- Rejoindre la file d'attente 1v1");
-        p.sendMessage(ChatColor.YELLOW + "/sb ou /scoreboard " + ChatColor.GRAY + "- Masquer/Afficher le scoreboard");
+        p.sendMessage(ChatColor.RED + "/menu " + ChatColor.GRAY + "- Ouvre le menu des modes de jeu");
+        p.sendMessage(ChatColor.RED + "/queue1v1 " + ChatColor.GRAY + "- Rejoindre la file d'attente 1v1");
+        p.sendMessage(ChatColor.RED + "/sb ou /scoreboard " + ChatColor.GRAY + "- Masquer/Afficher le scoreboard");
         
         if (p.hasPermission("souppvp.admin") || p.isOp()) {
             p.sendMessage(" ");
@@ -211,10 +211,10 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
     private ChatColor getRankColor(String rank) {
         if (rank.equals("admin")) return ChatColor.RED;
-        if (rank.equals("mod")) return ChatColor.DARK_PURPLE;
-        if (rank.equals("famous")) return ChatColor.AQUA;
-        if (rank.equals("vip")) return ChatColor.GOLD;
-        return ChatColor.WHITE;
+        if (rank.equals("mod")) return ChatColor.DARK_RED;
+        if (rank.equals("famous")) return ChatColor.GRAY;
+        if (rank.equals("vip")) return ChatColor.DARK_GRAY;
+        return ChatColor.GRAY;
     }
 
     private void updateAllPlayerNameTags() {
@@ -226,10 +226,10 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             }
 
             Team tAdmin = getOrCreateTeam(sb, "01Admin", ChatColor.RED);
-            Team tMod = getOrCreateTeam(sb, "02Mod", ChatColor.DARK_PURPLE);
-            Team tFamous = getOrCreateTeam(sb, "03Famous", ChatColor.AQUA);
-            Team tVip = getOrCreateTeam(sb, "04Vip", ChatColor.GOLD);
-            Team tDefault = getOrCreateTeam(sb, "05Default", ChatColor.WHITE);
+            Team tMod = getOrCreateTeam(sb, "02Mod", ChatColor.DARK_RED);
+            Team tFamous = getOrCreateTeam(sb, "03Famous", ChatColor.GRAY);
+            Team tVip = getOrCreateTeam(sb, "04Vip", ChatColor.DARK_GRAY);
+            Team tDefault = getOrCreateTeam(sb, "05Default", ChatColor.GRAY);
 
             for (Player target : Bukkit.getOnlinePlayers()) {
                 String r = playerRanks.getOrDefault(target.getUniqueId(), "default");
@@ -247,7 +247,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 else if (r.equals("vip")) tVip.addEntry(target.getName());
                 else tDefault.addEntry(target.getName());
 
-                // Troncature du TabList si le nom + couleur dépasse 16 caractères
                 String listName = color + target.getName();
                 if (listName.length() > 16) {
                     listName = listName.substring(0, 16);
@@ -272,7 +271,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         String rank = playerRanks.getOrDefault(p.getUniqueId(), "default");
         ChatColor color = getRankColor(rank);
 
-        e.setFormat(color + "%1$s" + ChatColor.RESET + ": %2$s");
+        e.setFormat("<" + color + "%1$s" + ChatColor.RESET + "> %2$s");
     }
 
     @EventHandler
@@ -284,9 +283,9 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // ----------------------------------------------------
-    // SCOREBOARD SÉCURISÉ (FORCE '0' POUR KILLS SI NON DÉFINI)
+    // SCOREBOARD SÉCURISÉ EN &7 ET &c
     // ----------------------------------------------------
-private void updateScoreboard(Player p) {
+    private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
             return;
@@ -318,9 +317,9 @@ private void updateScoreboard(Player p) {
         String rank = playerRanks.getOrDefault(uuid, "default");
         ChatColor rankColor = getRankColor(rank);
 
-        // Sécurité stricte 16 caractères max par ligne
-        addSafeScore(obj, "Rank" + rankColor, 11);
-        addSafeScore(obj, ChatColor.GRAY + " ", 10);
+        addSafeScore(obj, ChatColor.GRAY + " ", 12);
+        addSafeScore(obj, rankColor + rank, 11);
+        addSafeScore(obj, ChatColor.GRAY + "  ", 10);
         addSafeScore(obj, ChatColor.GRAY + "Kills", 9);
         addSafeScore(obj, ChatColor.RED + "" + k, 8);
         addSafeScore(obj, ChatColor.GRAY + "Death", 7);
@@ -340,16 +339,11 @@ private void updateScoreboard(Player p) {
         obj.getScore(text).setScore(score);
     }
 
-    private String safeString(String text, int maxLen) {
-        if (text == null) return "";
-        return text.length() > maxLen ? text.substring(0, maxLen) : text;
-    }
-
     private void toggleScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
             hiddenScoreboards.remove(p);
             updateScoreboard(p);
-            p.sendMessage(PREFIX + ChatColor.GREEN + "Scoreboard affiche !");
+            p.sendMessage(PREFIX + ChatColor.GRAY + "Scoreboard affiche !");
         } else {
             hiddenScoreboards.add(p);
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
@@ -414,7 +408,7 @@ private void updateScoreboard(Player p) {
             resetVanish(winner);
             teleportToSpawn(winner);
             updateScoreboard(winner);
-            winner.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "L'adversaire s'est deconnecte.");
+            winner.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "L'adversaire s'est deconnecte.");
         }
         saveDataToConfig();
     }
@@ -438,7 +432,7 @@ private void updateScoreboard(Player p) {
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
         
-        ItemStack boussole = createItem(Material.COMPASS, ChatColor.GREEN + "" + ChatColor.BOLD + "Selection de Mode");
+        ItemStack boussole = createItem(Material.COMPASS, ChatColor.RED + "" + ChatColor.BOLD + "Selection de Mode");
         p.getInventory().setItem(4, boussole);
     }
 
@@ -458,17 +452,18 @@ private void updateScoreboard(Player p) {
 
     @EventHandler
     public void onDrop(PlayerDropItemEvent e) {
-        if (e.getItemDrop().getItemStack().getType() == Material.REDSTONE) {
+        Material type = e.getItemDrop().getItemStack().getType();
+        if (type == Material.REDSTONE || type == Material.COMPASS) {
             e.setCancelled(true);
         }
-    }
+    }   
 
     private void openMenu(Player p) {
-        Inventory inv = Bukkit.createInventory(null, 27, ChatColor.DARK_GRAY + "Menu Principal");
+        Inventory inv = Bukkit.createInventory(null, 27, ChatColor.DARK_GRAY + "Menu");
         
-        inv.setItem(11, createItem(Material.IRON_SWORD, ChatColor.RED + "" + ChatColor.BOLD + "Arene FFA"));
-        inv.setItem(13, createItem(Material.DIAMOND_SWORD, ChatColor.YELLOW + "" + ChatColor.BOLD + "Mode 1v1 Duel"));
-        inv.setItem(15, createItem(Material.NETHER_STAR, ChatColor.GREEN + "" + ChatColor.BOLD + "Retour au Spawn"));
+        inv.setItem(11, createItem(Material.STONE_SWORD, ChatColor.RED + "" + ChatColor.BOLD + "Arene FFA"));
+        inv.setItem(13, createItem(Material.MUSHROOM_SOUP, ChatColor.RED + "" + ChatColor.BOLD + "1v1"));
+        inv.setItem(15, createItem(Material.NETHER_STAR, ChatColor.RED + "" + ChatColor.BOLD + "Retour au Spawn"));
 
         p.openInventory(inv);
     }
@@ -482,7 +477,7 @@ private void updateScoreboard(Player p) {
             return;
         }
 
-        if (!e.getView().getTitle().equals(ChatColor.DARK_GRAY + "Menu Principal")) return;
+        if (!e.getView().getTitle().equals(ChatColor.DARK_GRAY + "Menu")) return;
         
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player)) return;
@@ -495,7 +490,7 @@ private void updateScoreboard(Player p) {
             if (spawnArene != null) {
                 p.teleport(spawnArene);
                 giveKit(p);
-                p.sendMessage(PREFIX + ChatColor.GREEN + "Teleporte dans l'Arene FFA !");
+                p.sendMessage(PREFIX + ChatColor.GRAY + "Teleporte dans l'Arene FFA !");
             }
         } else if (slot == 13) {
             p.closeInventory();
@@ -521,7 +516,7 @@ private void updateScoreboard(Player p) {
         }
 
         queue1v1.add(p);
-        p.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "File 1v1 rejointe...");
+        p.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "File 1v1 rejointe...");
 
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
@@ -551,8 +546,8 @@ private void updateScoreboard(Player p) {
             giveKit(p1);
             giveKit(p2);
 
-            p1.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Duel contre " + p2.getName() + " !");
-            p2.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Duel contre " + p1.getName() + " !");
+            p1.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Duel contre " + ChatColor.RED + p2.getName() + ChatColor.GRAY + " !");
+            p2.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Duel contre " + ChatColor.RED + p1.getName() + ChatColor.GRAY + " !");
         }
     }
 
@@ -615,7 +610,7 @@ private void updateScoreboard(Player p) {
             resetVanish(victim);
             resetVanish(winner);
 
-            winner.sendMessage(PREFIX_1V1 + ChatColor.GREEN + "Victoire contre " + victim.getName() + " !");
+            winner.sendMessage(PREFIX_1V1 + ChatColor.GRAY + "Victoire contre " + ChatColor.RED + victim.getName() + ChatColor.GRAY + " !");
             victim.sendMessage(PREFIX_1V1 + ChatColor.RED + "Defaite !");
 
             Bukkit.getScheduler().runTaskLater(this, new Runnable() {
@@ -629,14 +624,14 @@ private void updateScoreboard(Player p) {
 
         if (tournoiEnCours && tournoiParticipants.contains(victim)) {
             tournoiParticipants.remove(victim);
-            Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.YELLOW + victim.getName() + ChatColor.RED + " elimine ! (" + tournoiParticipants.size() + " restants)");
+            Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.GRAY + victim.getName() + ChatColor.RED + " elimine ! (" + tournoiParticipants.size() + " restants)");
 
             if (tournoiParticipants.size() == 1) {
                 final Player winner = tournoiParticipants.get(0);
                 UUID wUuid = winner.getUniqueId();
                 tournoiWins.put(wUuid, tournoiWins.getOrDefault(wUuid, 0) + 1);
 
-                Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.GOLD + "" + ChatColor.BOLD + "VICTOIRE DE " + winner.getName() + " !");
+                Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.RED + "" + ChatColor.BOLD + "VICTOIRE DE " + winner.getName() + " !");
                 tournoiEnCours = false;
                 tournoiParticipants.clear();
                 saveDataToConfig();
@@ -674,7 +669,7 @@ private void updateScoreboard(Player p) {
         }
 
         tournoiEnCours = true;
-        Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.YELLOW + "Debut du tournoi dans 30 secondes !");
+        Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.GRAY + "Debut du tournoi dans 30 secondes !");
 
         new BukkitRunnable() {
             int timer = 30;
@@ -697,7 +692,7 @@ private void updateScoreboard(Player p) {
                         }
                         giveKit(p);
                     }
-                    Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.GREEN + "LE TOURNOI COMMENCE !");
+                    Bukkit.broadcastMessage(PREFIX_TOURNOI + ChatColor.RED + "LE TOURNOI COMMENCE !");
                     cancel();
                 }
                 timer--;
@@ -713,7 +708,7 @@ private void updateScoreboard(Player p) {
 
         ItemStack sword = new ItemStack(Material.STONE_SWORD);
         ItemMeta meta = sword.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + "Epee de Combat");
+        meta.setDisplayName(ChatColor.RED + "Epee de Combat");
         meta.spigot().setUnbreakable(true);
         sword.setItemMeta(meta);
 
