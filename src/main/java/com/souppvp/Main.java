@@ -239,7 +239,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         p.sendMessage(" ");
         p.sendMessage(ChatColor.GRAY + "Rank: " + rankColor + rank);
-        p.sendMessage(ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo + ChatColor.RESET +  + " (" + getEloRankName(pElo) + ")");
+        p.sendMessage(ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo + ChatColor.RESET + " (" + getEloRankName(pElo) + ")");
         p.sendMessage(ChatColor.GRAY + "Kills: " + ChatColor.DARK_PURPLE + k);
         p.sendMessage(ChatColor.GRAY + "Deaths: " + ChatColor.DARK_PURPLE + d);
         p.sendMessage(ChatColor.GRAY + "Ratio: " + ChatColor.DARK_PURPLE + kd);
