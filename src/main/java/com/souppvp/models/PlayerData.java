@@ -11,6 +11,7 @@ public class PlayerData {
     private int tournoiWins;
     private int elo;
     private String rank;
+    private boolean canBuild;
 
     public PlayerData(UUID uuid, int kills, int deaths, int killstreak, int tournoiWins, int elo, String rank) {
         this.uuid = uuid;
@@ -20,6 +21,7 @@ public class PlayerData {
         this.tournoiWins = tournoiWins;
         this.elo = elo;
         this.rank = rank;
+        this.canBuild = false; // Par défaut, personne ne peut build
     }
 
     public UUID getUuid() { return uuid; }
@@ -38,4 +40,7 @@ public class PlayerData {
 
     public String getRank() { return rank; }
     public void setRank(String rank) { this.rank = rank; }
+
+    public boolean canBuild() { return canBuild; }
+    public void setCanBuild(boolean canBuild) { this.canBuild = canBuild; }
 }

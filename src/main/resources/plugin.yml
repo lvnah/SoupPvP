@@ -23,6 +23,9 @@ commands:
     description: Masque ou affiche le scoreboard
   tournoi:
     description: Commande pour les tournois
+  build:
+    description: Active ou desactive le mode construction
+    permission: souppvp.admin
   setspawn:
     description: Definit le spawn principal
     permission: souppvp.admin

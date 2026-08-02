@@ -55,6 +55,7 @@ public class Main extends JavaPlugin {
         getCommand("scoreboard").setExecutor(sbCmd);
 
         getCommand("tournoi").setExecutor(new TournoiCommand(this));
+        getCommand("build").setExecutor(new BuildCommand(this)); // NOUVELLE COMMANDE BUILD
 
         AdminCommand adminCmd = new AdminCommand(this);
         getCommand("setspawn").setExecutor(adminCmd);
@@ -80,7 +81,6 @@ public class Main extends JavaPlugin {
         dataManager.saveData();
     }
 
-    // Getters pour autoriser la communication inter-classes
     public ColorConfig getColorConfig() { return colorConfig; }
     public DataManager getDataManager() { return dataManager; }
     public PlayerManager getPlayerManager() { return playerManager; }
