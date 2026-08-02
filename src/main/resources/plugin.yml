@@ -1,33 +1,49 @@
 name: SoupTournament
 version: 1.0
 main: com.souppvp.Main
+author: DatSoup
 api-version: 1.8
-author: Gemini
+
 commands:
-  help:
-    description: Affiche l'aide du serveur SoupTournament.
-  setspawn:
-    description: Definit le spawn principal.
-  setarenespawn:
-    description: Definit le spawn de l'arene FFA.
-  set1v1spawn1:
-    description: Definit le premier spawn 1v1.
-  set1v1spawn2:
-    description: Definit le second spawn 1v1.
-  settournoispawn:
-    description: Ajoute un spawn de tournoi.
+  warps:
+    description: Ouvre le menu des warps
+    aliases: [menu]
   menu:
-    description: Ouvre le menu principal.
+    description: Ouvre le menu des warps
   queue1v1:
-    description: Rejoindre la file d'attente 1v1.
-  tournoi:
-    description: Gestion du tournoi.
-  sb:
-    description: Afficher/Masquer le scoreboard.
-  scoreboard:
-    description: Afficher/Masquer le scoreboard.
-  setrank:
-    description: Definir le grade d'un joueur.
-    permission: souppvp.admin
+    description: Rejoint la file 1v1
   stats:
-    description: Affiche les stats d'un joueur.
+    description: Affiche tes statistiques
+  help:
+    description: Affiche le menu d'aide
+  sb:
+    description: Masque ou affiche le scoreboard
+    aliases: [scoreboard]
+  scoreboard:
+    description: Masque ou affiche le scoreboard
+  tournoi:
+    description: Commande pour les tournois
+  setspawn:
+    description: Definit le spawn principal
+    permission: souppvp.admin
+  setffaspawn:
+    description: Definit le spawn FFA
+    permission: souppvp.admin
+  setearlyhgspawn:
+    description: Definit le spawn EarlyHG
+    permission: souppvp.admin
+  setchallengespawn:
+    description: Definit le spawn Challenge
+    permission: souppvp.admin
+  set1v1spawn1:
+    description: Definit le 1er spawn 1v1
+    permission: souppvp.admin
+  set1v1spawn2:
+    description: Definit le 2eme spawn 1v1
+    permission: souppvp.admin
+  settournoispawn:
+    description: Ajoute un spawn de tournoi
+    permission: souppvp.admin
+  setrank:
+    description: Change le grade d'un joueur
+    permission: souppvp.admin
