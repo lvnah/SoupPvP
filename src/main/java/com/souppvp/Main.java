@@ -8,6 +8,8 @@ import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -32,6 +34,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -41,12 +45,16 @@ import java.util.UUID;
 
 public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
-    // Couleurs globales chargées depuis la config
+    // Couleurs globales chargées depuis config.yml
     private String prefixTag;
     private String prefix1v1;
     private String prefixTournoi;
     private String sbTitle;
     private String sbValueColor;
+
+    // Fichier de données séparé data.yml
+    private File dataFile;
+    private FileConfiguration dataConfig;
 
     private Location spawnMain;
     private Location spawnFFA;
@@ -77,6 +85,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        setupDataFile();
         loadDataFromConfig();
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("Plugin DatSoup 1.8 active avec succes !");
@@ -87,6 +96,21 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         saveDataToConfig();
     }
 
+    private void setupDataFile() {
+        if (!getDataFolder().exists()) {
+            getDataFolder().mkdirs();
+        }
+        dataFile = new File(getDataFolder(), "data.yml");
+        if (!dataFile.exists()) {
+            try {
+                dataFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        dataConfig = YamlConfiguration.loadConfiguration(dataFile);
+    }
+
     private String color(String text) {
         if (text == null) return "";
         return ChatColor.translateAlternateColorCodes('&', text);
@@ -95,41 +119,54 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     private void loadDataFromConfig() {
         reloadConfig();
 
-        // Chargement de la Charte Graphique
+        // 1. Chargement de la Charte Graphique depuis config.yml
         prefixTag = color(getConfig().getString("colors.prefix-tag", "&8[&5SoupTournament&8] ")) + ChatColor.RESET;
         prefix1v1 = color(getConfig().getString("colors.prefix-1v1", "&8[&51v1&8] ")) + ChatColor.RESET;
         prefixTournoi = color(getConfig().getString("colors.prefix-tournoi", "&8[&5Tournoi&8] ")) + ChatColor.RESET;
         sbTitle = color(getConfig().getString("colors.scoreboard-title", "&5&lSoupTournament"));
         sbValueColor = color(getConfig().getString("colors.scoreboard-values", "&5"));
 
-        if (getConfig().contains("spawns.main")) spawnMain = (Location) getConfig().get("spawns.main");
-        if (getConfig().contains("spawns.ffa")) spawnFFA = (Location) getConfig().get("spawns.ffa");
-        if (getConfig().contains("spawns.earlyhg")) spawnEarlyHG = (Location) getConfig().get("spawns.earlyhg");
-        if (getConfig().contains("spawns.challenge")) spawnChallenge = (Location) getConfig().get("spawns.challenge");
-        if (getConfig().contains("spawns.1v1_1")) spawn1v1_1 = (Location) getConfig().get("spawns.1v1_1");
-        if (getConfig().contains("spawns.1v1_2")) spawn1v1_2 = (Location) getConfig().get("spawns.1v1_2");
-        if (getConfig().contains("spawns.tournois")) {
-            List<?> list = getConfig().getList("spawns.tournois");
+        // Migration rétrocompatible si l'ancien config.yml contenait des spawns ou players
+        if (getConfig().contains("spawns") && !dataConfig.contains("spawns")) {
+            dataConfig.set("spawns", getConfig().get("spawns"));
+            getConfig().set("spawns", null);
+        }
+        if (getConfig().contains("players") && !dataConfig.contains("players")) {
+            dataConfig.set("players", getConfig().get("players"));
+            getConfig().set("players", null);
+        }
+        saveConfig();
+        try { dataConfig.save(dataFile); } catch (IOException ignored) {}
+
+        // 2. Chargement des données depuis data.yml
+        if (dataConfig.contains("spawns.main")) spawnMain = (Location) dataConfig.get("spawns.main");
+        if (dataConfig.contains("spawns.ffa")) spawnFFA = (Location) dataConfig.get("spawns.ffa");
+        if (dataConfig.contains("spawns.earlyhg")) spawnEarlyHG = (Location) dataConfig.get("spawns.earlyhg");
+        if (dataConfig.contains("spawns.challenge")) spawnChallenge = (Location) dataConfig.get("spawns.challenge");
+        if (dataConfig.contains("spawns.1v1_1")) spawn1v1_1 = (Location) dataConfig.get("spawns.1v1_1");
+        if (dataConfig.contains("spawns.1v1_2")) spawn1v1_2 = (Location) dataConfig.get("spawns.1v1_2");
+        if (dataConfig.contains("spawns.tournois")) {
+            List<?> list = dataConfig.getList("spawns.tournois");
             for (Object o : list) {
                 if (o instanceof Location) tournoiSpawns.add((Location) o);
             }
         }
 
-        if (getConfig().contains("players")) {
-            for (String key : getConfig().getConfigurationSection("players").getKeys(false)) {
+        if (dataConfig.contains("players")) {
+            for (String key : dataConfig.getConfigurationSection("players").getKeys(false)) {
                 try {
                     UUID uuid = UUID.fromString(key);
-                    kills.put(uuid, getConfig().getInt("players." + key + ".kills", 0));
-                    deaths.put(uuid, getConfig().getInt("players." + key + ".deaths", 0));
-                    killstreaks.put(uuid, getConfig().getInt("players." + key + ".killstreak", 0));
-                    tournoiWins.put(uuid, getConfig().getInt("players." + key + ".tournoiWins", 0));
-                    elo.put(uuid, getConfig().getInt("players." + key + ".elo", 500));
-                    playerRanks.put(uuid, getConfig().getString("players." + key + ".rank", "default"));
+                    kills.put(uuid, dataConfig.getInt("players." + key + ".kills", 0));
+                    deaths.put(uuid, dataConfig.getInt("players." + key + ".deaths", 0));
+                    killstreaks.put(uuid, dataConfig.getInt("players." + key + ".killstreak", 0));
+                    tournoiWins.put(uuid, dataConfig.getInt("players." + key + ".tournoiWins", 0));
+                    elo.put(uuid, dataConfig.getInt("players." + key + ".elo", 500));
+                    playerRanks.put(uuid, dataConfig.getString("players." + key + ".rank", "default"));
                 } catch (Exception ignored) {}
             }
         }
 
-        // Met à jour l'affichage de tous les joueurs en ligne après un reload
+        // Mettre à jour l'affichage de tous les joueurs en ligne après un /reload
         for (Player online : Bukkit.getOnlinePlayers()) {
             updateScoreboard(online);
         }
@@ -137,23 +174,28 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     private void saveDataToConfig() {
-        if (spawnMain != null) getConfig().set("spawns.main", spawnMain);
-        if (spawnFFA != null) getConfig().set("spawns.ffa", spawnFFA);
-        if (spawnEarlyHG != null) getConfig().set("spawns.earlyhg", spawnEarlyHG);
-        if (spawnChallenge != null) getConfig().set("spawns.challenge", spawnChallenge);
-        if (spawn1v1_1 != null) getConfig().set("spawns.1v1_1", spawn1v1_1);
-        if (spawn1v1_2 != null) getConfig().set("spawns.1v1_2", spawn1v1_2);
-        getConfig().set("spawns.tournois", tournoiSpawns);
+        if (spawnMain != null) dataConfig.set("spawns.main", spawnMain);
+        if (spawnFFA != null) dataConfig.set("spawns.ffa", spawnFFA);
+        if (spawnEarlyHG != null) dataConfig.set("spawns.earlyhg", spawnEarlyHG);
+        if (spawnChallenge != null) dataConfig.set("spawns.challenge", spawnChallenge);
+        if (spawn1v1_1 != null) dataConfig.set("spawns.1v1_1", spawn1v1_1);
+        if (spawn1v1_2 != null) dataConfig.set("spawns.1v1_2", spawn1v1_2);
+        dataConfig.set("spawns.tournois", tournoiSpawns);
 
         for (UUID uuid : playerRanks.keySet()) {
-            getConfig().set("players." + uuid.toString() + ".kills", kills.getOrDefault(uuid, 0));
-            getConfig().set("players." + uuid.toString() + ".deaths", deaths.getOrDefault(uuid, 0));
-            getConfig().set("players." + uuid.toString() + ".killstreak", killstreaks.getOrDefault(uuid, 0));
-            getConfig().set("players." + uuid.toString() + ".tournoiWins", tournoiWins.getOrDefault(uuid, 0));
-            getConfig().set("players." + uuid.toString() + ".elo", elo.getOrDefault(uuid, 500));
-            getConfig().set("players." + uuid.toString() + ".rank", playerRanks.getOrDefault(uuid, "default"));
+            dataConfig.set("players." + uuid.toString() + ".kills", kills.getOrDefault(uuid, 0));
+            dataConfig.set("players." + uuid.toString() + ".deaths", deaths.getOrDefault(uuid, 0));
+            dataConfig.set("players." + uuid.toString() + ".killstreak", killstreaks.getOrDefault(uuid, 0));
+            dataConfig.set("players." + uuid.toString() + ".tournoiWins", tournoiWins.getOrDefault(uuid, 0));
+            dataConfig.set("players." + uuid.toString() + ".elo", elo.getOrDefault(uuid, 500));
+            dataConfig.set("players." + uuid.toString() + ".rank", playerRanks.getOrDefault(uuid, "default"));
         }
-        saveConfig();
+
+        try {
+            dataConfig.save(dataFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
