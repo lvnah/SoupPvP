@@ -24,6 +24,7 @@ import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -32,6 +33,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -337,6 +339,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         return t;
     }
 
+    // FIX COULEURS DU CHAT : Réinitialisation propre entre le rang Elo et le pseudo du joueur
     @EventHandler
     public void onChat(AsyncPlayerChatEvent e) {
         Player p = e.getPlayer();
@@ -346,7 +349,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         int pElo = elo.getOrDefault(p.getUniqueId(), 500);
         String eloRank = getEloRankName(pElo);
 
-        e.setFormat(eloRank + " <" + color + "%1$s" + ChatColor.RESET + "> %2$s");
+        e.setFormat(eloRank + ChatColor.RESET + " <" + color + "%1$s" + ChatColor.RESET + "> %2$s");
     }
 
     @EventHandler
@@ -357,6 +360,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
+    // SCOREBOARD : "Elo: 500" uniquement (affichage court)
     private void updateScoreboard(Player p) {
         if (hiddenScoreboards.contains(p)) {
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
@@ -385,7 +389,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         ChatColor rankColor = getRankColor(rank);
 
         addSafeScore(obj, ChatColor.GRAY + "Rank: " + rankColor + safeString(rank, 8), 3);
-        addSafeScore(obj, ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo + " (" + getEloRankName(pElo) + ChatColor.GRAY + ")", 2);
+        addSafeScore(obj, ChatColor.GRAY + "Elo: " + ChatColor.DARK_PURPLE + pElo, 2);
         addSafeScore(obj, ChatColor.GRAY + "Wins: " + ChatColor.DARK_PURPLE + wins, 1);
     }
 
@@ -510,7 +514,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         p.getInventory().clear();
         p.getInventory().setArmorContents(null);
         
-        // BOUSSOLE AU SLOT 1 (Index 0) NOMMÉE "&5Warps"
         ItemStack boussole = createItem(Material.COMPASS, ChatColor.DARK_PURPLE + "Warps");
         p.getInventory().setItem(0, boussole);
     }
@@ -551,30 +554,68 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
         }.runTaskLater(this, 100L);
     }
 
-    // GUI 1 LIGNE : "&8Warps List"
+    // CREATION DES ITEMS DU MENU WARPS AVEC LORE / DESCRIPTION STYLEE (COMME SUR L'IMAGE)
     private void openWarpsMenu(Player p) {
         Inventory inv = Bukkit.createInventory(null, 9, ChatColor.DARK_GRAY + "Warps List");
         
-        // Slot 2 (index 1) : Soupe -> FFA
-        inv.setItem(1, createItem(Material.MUSHROOM_SOUP, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "FFA"));
+        // FFA
+        inv.setItem(1, createWarpItem(Material.MUSHROOM_SOUP, 
+                ChatColor.AQUA + "FFA", 
+                Arrays.asList(
+                    ChatColor.GRAY + "Fight in FFA mode against all",
+                    ChatColor.GRAY + "players with soup healing.",
+                    "",
+                    ChatColor.WHITE + "> " + ChatColor.AQUA + "0 players"
+                )));
         
-        // Slot 4 (index 3) : Épée en pierre -> EarlyHG
-        inv.setItem(3, createItem(Material.STONE_SWORD, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "EarlyHG"));
+        // EarlyHG
+        inv.setItem(3, createWarpItem(Material.STONE_SWORD, 
+                ChatColor.AQUA + "Early HG", 
+                Arrays.asList(
+                    ChatColor.GRAY + "Fight with a stone sword",
+                    ChatColor.GRAY + "in the simulation of the",
+                    ChatColor.GRAY + "first few minutes of a HG Games.",
+                    "",
+                    ChatColor.WHITE + "> " + ChatColor.AQUA + "0 players"
+                )));
         
-        // Slot 6 (index 5) : Rose Red (Ink Sack data ID 1) -> 1v1
-        ItemStack roseRed = new ItemStack(Material.INK_SACK, 1, (short) 1);
-        ItemMeta meta = roseRed.getItemMeta();
-        meta.setDisplayName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "1v1");
-        roseRed.setItemMeta(meta);
-        inv.setItem(5, roseRed);
+        // 1v1 (Rose Red)
+        inv.setItem(5, createWarpItem(Material.INK_SACK, (short) 1,
+                ChatColor.AQUA + "1v1", 
+                Arrays.asList(
+                    ChatColor.GRAY + "Queue up for Unranked or Ranked",
+                    ChatColor.GRAY + "duels against other players.",
+                    "",
+                    ChatColor.WHITE + "> " + ChatColor.AQUA + "0 players"
+                )));
         
-        // Slot 8 (index 7) : Seau de Lave -> Challenge
-        inv.setItem(7, createItem(Material.LAVA_BUCKET, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "Challenge"));
+        // Challenge
+        inv.setItem(7, createWarpItem(Material.LAVA_BUCKET, 
+                ChatColor.AQUA + "Challenge", 
+                Arrays.asList(
+                    ChatColor.GRAY + "Train your mechanics and lava",
+                    ChatColor.GRAY + "refills in lava challenge.",
+                    "",
+                    ChatColor.WHITE + "> " + ChatColor.AQUA + "0 players"
+                )));
 
         p.openInventory(inv);
     }
 
-    // SUB-MENU DE SÉLECTION 1V1 (UNRANKED / RANKED)
+    private ItemStack createWarpItem(Material mat, String name, List<String> lore) {
+        return createWarpItem(mat, (short) 0, name, lore);
+    }
+
+    private ItemStack createWarpItem(Material mat, short data, String name, List<String> lore) {
+        ItemStack item = new ItemStack(mat, 1, data);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(name);
+        meta.setLore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES); // Masque le "+5 Attack Damage"
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private void open1v1SelectMenu(Player p) {
         Inventory inv = Bukkit.createInventory(null, 27, ChatColor.DARK_GRAY + "Mode 1v1");
         inv.setItem(12, createItem(Material.MUSHROOM_SOUP, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "1v1 Unranked"));
@@ -596,14 +637,13 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
         String title = e.getView().getTitle();
 
-        // Clics dans le menu Warps List
         if (title.equals(ChatColor.DARK_GRAY + "Warps List")) {
             e.setCancelled(true);
             if (!(e.getWhoClicked() instanceof Player)) return;
             Player p = (Player) e.getWhoClicked();
             int slot = e.getRawSlot();
 
-            if (slot == 1) { // Soupe (FFA)
+            if (slot == 1) { // FFA
                 p.closeInventory();
                 if (spawnFFA != null) {
                     p.teleport(spawnFFA);
@@ -612,7 +652,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 } else {
                     p.sendMessage(PREFIX + ChatColor.DARK_PURPLE + "Spawn FFA non defini !");
                 }
-            } else if (slot == 3) { // Stone Sword (EarlyHG)
+            } else if (slot == 3) { // EarlyHG
                 p.closeInventory();
                 if (spawnEarlyHG != null) {
                     p.teleport(spawnEarlyHG);
@@ -621,10 +661,10 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                 } else {
                     p.sendMessage(PREFIX + ChatColor.DARK_PURPLE + "Spawn EarlyHG non defini !");
                 }
-            } else if (slot == 5) { // Rose Red (1v1)
+            } else if (slot == 5) { // 1v1
                 p.closeInventory();
                 open1v1SelectMenu(p);
-            } else if (slot == 7) { // Lava Bucket (Challenge)
+            } else if (slot == 7) { // Challenge
                 p.closeInventory();
                 if (spawnChallenge != null) {
                     p.teleport(spawnChallenge);
@@ -637,7 +677,6 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
             return;
         }
 
-        // Clics dans le menu de sélection 1v1
         if (title.equals(ChatColor.DARK_GRAY + "Mode 1v1")) {
             e.setCancelled(true);
             if (!(e.getWhoClicked() instanceof Player)) return;
