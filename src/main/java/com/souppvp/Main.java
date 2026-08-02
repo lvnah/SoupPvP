@@ -84,7 +84,7 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
+        setupDefaultConfigValues();
         setupDataFile();
         loadDataFromConfig();
         getServer().getPluginManager().registerEvents(this, this);
@@ -94,6 +94,31 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
     @Override
     public void onDisable() {
         saveDataToConfig();
+    }
+
+    // INITIALISATION DES VALEURS PAR DÉFAUT DANS CONFIG.YML S'IL EST VIDE
+    private void setupDefaultConfigValues() {
+        getConfig().addDefault("colors.prefix-tag", "&8[&5SoupTournament&8] ");
+        getConfig().addDefault("colors.prefix-1v1", "&8[&51v1&8] ");
+        getConfig().addDefault("colors.prefix-tournoi", "&8[&5Tournoi&8] ");
+        getConfig().addDefault("colors.scoreboard-title", "&5&lSoupTournament");
+        getConfig().addDefault("colors.scoreboard-values", "&5");
+
+        getConfig().addDefault("colors.rank-admin", "&c");
+        getConfig().addDefault("colors.rank-mod", "&d");
+        getConfig().addDefault("colors.rank-famous", "&b");
+        getConfig().addDefault("colors.rank-vip", "&6");
+        getConfig().addDefault("colors.rank-default", "&7");
+
+        getConfig().addDefault("colors.elo-bronze", "&8Bronze");
+        getConfig().addDefault("colors.elo-silver", "&7Silver");
+        getConfig().addDefault("colors.elo-gold", "&6Gold");
+        getConfig().addDefault("colors.elo-platine", "&bPlatine");
+        getConfig().addDefault("colors.elo-diamant", "&9Diamant");
+        getConfig().addDefault("colors.elo-supreme", "&4Supreme");
+
+        getConfig().options().copyDefaults(true);
+        saveConfig();
     }
 
     private void setupDataFile() {
